@@ -276,7 +276,7 @@
       </div>
       <p class="desc">Ігровий сайт для формування автомобільних екіпажів на корпоратив у Житомирі (17.08.2026). 23 учасники, дедлайн-таймер, WhatsApp-шаблони, і жартівливий Kiril Premium Crew easter egg.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Стан переїхав з localStorage у Firestore (усі бачать одні й ті самі екіпажі в реальному часі) + git-linked auto-deploy на Vercel · 12.08.2026</p>
+      <p class="changes-text">Додано банер "усі екіпажі сформовано" у hero-секції · 13.08.2026</p>
       <div class="links">
         <a class="pill" href="https://zhytomyr-carpool.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/zhytomyr-carpool" target="_blank" rel="noopener">GitHub ↗</a>
@@ -325,7 +325,7 @@
       </div>
       <p class="desc">Приватна панель залишку платних ресурсів (Cloudinary, Anthropic, GitHub) для всіх ботів — з прогнозом вичерпання і кнопкою ручного оновлення балансу.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Реліз: Cloudinary live-трекінг, решта карток — статичні довідкові (Anthropic Admin API недоступний, GitHub billing-ендпоінт 404 на classic PAT) · 09.08.2026</p>
+      <p class="changes-text">Додано кнопку на сайті для ручного оновлення балансу Anthropic (зберігається у Firestore, без редеплою) · 10.08.2026</p>
       <div class="links">
         <a class="pill" href="https://github.com/romanchuk82-ctrl/resource-dashboard" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
@@ -349,7 +349,7 @@
       </div>
       <p class="desc">Публічний дашборд штатки магазинів: місячний Excel через Gmail-автоімпорт, дефіцит по дистриктах/регіонах, експорт у PPTX для PM.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Експорт District/Region/Country у PowerPoint (.pptx) + UX/UI polish-прохід · 09.08.2026</p>
+      <p class="changes-text">Повернуто Basic Auth логін (JUA) · 11.08.2026</p>
       <div class="links">
         <a class="pill" href="https://staffing-fawn.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/STAFFING-" target="_blank" rel="noopener">GitHub ↗</a>
@@ -417,16 +417,17 @@
         </div>
         <span class="badge blue">У розробці</span>
       </div>
-      <p class="desc">Шаблон для нових event-ботів JYSK: чиста заготовка репозиторію, з якої можна швидко стартувати черговий чат-бот під конкретну подію (за зразком bot-jua-meeting).</p>
+      <p class="desc">Шаблон для нових event-ботів JYSK: generic PWA чат-бот на основі архітектури bot-jua-meeting (промпт-кешування, адмінка), з прибраними JYSK-специфічними даними й плейсхолдерами замість них — готовий каркас для швидкого старту чергового event-бота.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Репозиторій створено на GitHub, поки порожній — код ще не додано · 14.08.2026</p>
+      <p class="changes-text">Наповнено генерик-шаблоном: адмінка через логін/пароль замість URL-ключа, прибрано мертвий presenter.html, перший деплой на Vercel · 14.08.2026</p>
       <div class="links">
+        <a class="pill" href="https://jysk-event-bot-template.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-event-bot-template" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Репозиторій jysk-event-bot-template щойно створено, порожній. Наступний крок — визначити стек і структуру шаблону для event-ботів.</div>
+          <div class="continue-text" data-copy>Прочитай CLAUDE.md в jysk-event-bot-template і продовж — базовий generic-шаблон event-бота готовий (адмінка логін/пароль, плейсхолдер-дані, задеплоєно на Vercel), перевір що ще треба зачистити/узагальнити перед реальним використанням.</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
