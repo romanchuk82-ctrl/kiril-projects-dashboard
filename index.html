@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проєкти Кіріла</title>
+<style>
+  :root{
+    --bg:#f0ede4;
+    --card:#ffffff;
+    --text:#3a3a3a;
+    --muted:#8a8478;
+    --accent:#a9642c;
+    --blue:#2f6fb0;
+    --blue-bg:#e3edf7;
+    --green:#3f8b52;
+    --green-bg:#e5f2e7;
+    --orange:#c05a2c;
+    --orange-bg:#fbe9e0;
+    --pill-bg:#ece7da;
+    --continue-bg:#e9e2d1;
+    --border:#e4ddca;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    padding:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+  }
+  .wrap{
+    max-width:820px;
+    margin:0 auto;
+    padding:32px 20px 64px;
+  }
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin-bottom:14px;
+  }
+  h1{
+    font-size:34px;
+    margin:0 0 28px;
+    font-weight:700;
+    letter-spacing:-0.5px;
+  }
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:32px;
+  }
+  .stat-box{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:18px 10px;
+    text-align:center;
+  }
+  .stat-num{
+    font-size:28px;
+    font-weight:700;
+  }
+  .stat-num.total{color:var(--text);}
+  .stat-num.launched{color:var(--green);}
+  .stat-num.dev{color:var(--blue);}
+  .stat-num.waiting{color:var(--orange);}
+  .stat-label{
+    font-size:10px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-top:4px;
+    font-weight:600;
+  }
+  .cards{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:22px 22px 20px;
+  }
+  .card-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:10px;
+  }
+  .card-title-row{
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+  .dot.blue{background:var(--blue);}
+  .dot.green{background:var(--green);}
+  .dot.orange{background:var(--orange);}
+  .card-title{
+    font-size:17px;
+    font-weight:700;
+  }
+  .badge{
+    font-size:10px;
+    letter-spacing:0.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    padding:5px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .badge.blue{color:var(--blue);background:var(--blue-bg);}
+  .badge.green{color:var(--green);background:var(--green-bg);}
+  .badge.orange{color:var(--orange);background:var(--orange-bg);}
+  .desc{
+    font-size:14px;
+    color:var(--text);
+    margin:0 0 14px;
+  }
+  .changes-label{
+    font-size:10px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:700;
+    margin-bottom:4px;
+  }
+  .changes-text{
+    font-size:13.5px;
+    color:var(--muted);
+    margin:0 0 16px;
+  }
+  .links{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:16px;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    background:var(--pill-bg);
+    color:var(--text);
+    font-size:12.5px;
+    font-weight:600;
+    text-decoration:none;
+    padding:7px 13px;
+    border-radius:20px;
+    transition:background .15s ease;
+  }
+  .pill:hover{background:#e0d8c4;}
+  .continue-box{
+    background:var(--continue-bg);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .continue-label{
+    font-size:10px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:700;
+    margin-bottom:6px;
+  }
+  .continue-body{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .continue-text{
+    font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:12px;
+    color:var(--text);
+    flex:1;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  .copy-btn{
+    flex-shrink:0;
+    background:var(--card);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-size:12px;
+    font-weight:600;
+    padding:6px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .copy-btn:hover{background:#f7f4ea;}
+  .copy-btn.copied{color:var(--green);border-color:var(--green);}
+  footer{
+    text-align:center;
+    font-size:12.5px;
+    color:var(--muted);
+    font-style:italic;
+    margin-top:36px;
+  }
+  @media (max-width:600px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    h1{font-size:26px;}
+    .card{padding:18px 16px;}
+    .card-head{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span>Пульт керування</span>
+    <span id="updatedDate">оновлено 14.08.2026</span>
+  </div>
+
+  <h1>Проєкти Кіріла</h1>
+
+  <div class="stats">
+    <div class="stat-box"><div class="stat-num total">8</div><div class="stat-label">Усього</div></div>
+    <div class="stat-box"><div class="stat-num launched">4</div><div class="stat-label">Запущено</div></div>
+    <div class="stat-box"><div class="stat-num dev">3</div><div class="stat-label">У розробці</div></div>
+    <div class="stat-box"><div class="stat-num waiting">1</div><div class="stat-label">Чекає доступів</div></div>
+  </div>
+
+  <div class="cards">
+
+    <!-- 1. JYSK Customer Voice -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot blue"></span>
+          <span class="card-title">JYSK Customer Voice</span>
+        </div>
+        <span class="badge blue">У розробці</span>
+      </div>
+      <p class="desc">Дашборд моніторингу відгуків Google Maps по ~120 магазинах JYSK: рейтинги мережі/магазину/дистрикту, стрічка відгуків зі статусами й відповідальними, AI-теги тональності/теми, тижневий Telegram-звіт.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Repo-скелет (Next.js + Redis) + dark Nordic-редизайн застосовано в реальному дашборді, мобіл-френдлі (off-canvas меню, single-column грід) · 14.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-customer-voice" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж — репо готове (Next.js+Redis, dark Nordic mobile-friendly дашборд), треба: DataForSEO ключі, реальний список 120 магазинів, Redis+Vercel деплой.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Zhytomyr Carpool -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot green"></span>
+          <span class="card-title">Хто зі мною? — Zhytomyr Carpool</span>
+        </div>
+        <span class="badge green">Запущено</span>
+      </div>
+      <p class="desc">Ігровий сайт для формування автомобільних екіпажів на корпоратив у Житомирі (17.08.2026). 23 учасники, дедлайн-таймер, WhatsApp-шаблони, і жартівливий Kiril Premium Crew easter egg.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Стан переїхав з localStorage у Firestore (усі бачать одні й ті самі екіпажі в реальному часі) + git-linked auto-deploy на Vercel · 12.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://zhytomyr-carpool.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/zhytomyr-carpool" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Прочитай zhytomyr_carpool_project пам'ять — карпул-застосунок 'Хто зі мною?', код у Desktop\матраци елернінг нови\zhytomyr-carpool, живий на zhytomyr-carpool.vercel.app, git-linked до Vercel (просто git push — деплоїться сам за секунди), спільний стан у Firestore.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Bot Річне зібрання JYSK -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot green"></span>
+          <span class="card-title">Bot Річне зібрання JYSK</span>
+        </div>
+        <span class="badge green">Запущено</span>
+      </div>
+      <p class="desc">PWA-чат-бот для щорічної зустрічі керуючих магазинів JYSK Ukraine (15–16.09.2026). Питання до CD, фото Moments, ескалація в Telegram, промпт-кешування.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Обрізання історії чату до останніх ~6 обмінів — захист від необмеженого росту вартості API · 10.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/bot-jua-meeting" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Прочитай CLAUDE.md в bot-jua-meeting і продовж — там же незакомічений trailer + бриф, і відкрите питання про музику для трейлера.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Resource Dashboard -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot green"></span>
+          <span class="card-title">Resource Dashboard</span>
+        </div>
+        <span class="badge green">Запущено</span>
+      </div>
+      <p class="desc">Приватна панель залишку платних ресурсів (Cloudinary, Anthropic, GitHub) для всіх ботів — з прогнозом вичерпання і кнопкою ручного оновлення балансу.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Реліз: Cloudinary live-трекінг, решта карток — статичні довідкові (Anthropic Admin API недоступний, GitHub billing-ендпоінт 404 на classic PAT) · 09.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/resource-dashboard" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Продовж resource-dashboard — перевір curl /api/usage, чи всі картки чисті.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. JYSK Staffing -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot green"></span>
+          <span class="card-title">JYSK Staffing</span>
+        </div>
+        <span class="badge green">Запущено</span>
+      </div>
+      <p class="desc">Публічний дашборд штатки магазинів: місячний Excel через Gmail-автоімпорт, дефіцит по дистриктах/регіонах, експорт у PPTX для PM.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Експорт District/Region/Country у PowerPoint (.pptx) + UX/UI polish-прохід · 09.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://staffing-fawn.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/STAFFING-" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Продовж JYSK Staffing — перевір, чи спрацював installBackupTrigger (тижневий бекап + сповіщення про помилки).</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. AI Team -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot blue"></span>
+          <span class="card-title">AI Team</span>
+        </div>
+        <span class="badge blue">У розробці</span>
+      </div>
+      <p class="desc">Особиста desktop dev-платформа: чат з координатором, який пропонує план змін і, після твого схвалення, запускає Claude Code для реалізації.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Завантаження файлів/фото в чат, керування браузером для Engineer, one-click approve+execute · 05.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/ai-team" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Прочитай PROJECT_MEMORY.md.txt в AI team.ai (особливо останній розділ) і продовж з того місця, де зупинились — file/photo uploads, browser control для Engineer, і one-click plan approval.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. BF2026 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot orange"></span>
+          <span class="card-title">BF2026 — Black Friday Command Center</span>
+        </div>
+        <span class="badge orange">Чекає доступів</span>
+      </div>
+      <p class="desc">Telegram Mini App для підготовки мережі до Black Friday: навчання, AI-асистент, гейміфікація, внутрішня стрічка магазинів. Дедлайн 01.10.2026.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Каркас на мок-даних (5 екранів), build+typecheck чисті — чекає доступів від Кіріла · 06.08.2026</p>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Прочитай CLAUDE.md і docs/PRD.md в BF2026, продовж — каркас готовий, чекаємо доступи від Кіріла (Telegram Bot, Firebase, Cloudinary, Anthropic, список магазинів, матеріали).</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. JYSK Event Bot Template -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot blue"></span>
+          <span class="card-title">JYSK Event Bot Template</span>
+        </div>
+        <span class="badge blue">У розробці</span>
+      </div>
+      <p class="desc">Шаблон для нових event-ботів JYSK: чиста заготовка репозиторію, з якої можна швидко стартувати черговий чат-бот під конкретну подію (за зразком bot-jua-meeting).</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Репозиторій створено на GitHub, поки порожній — код ще не додано · 14.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-event-bot-template" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Репозиторій jysk-event-bot-template щойно створено, порожній. Наступний крок — визначити стек і структуру шаблону для event-ботів.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>Натисни «Копіювати» під проєктом і встав фразу в новий чат — я підхоплю контекст сам.</footer>
+
+</div>
+
+<script>
+function copyText(btn){
+  var text = btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(function(){
+    var original = btn.textContent;
+    btn.textContent = 'Скопійовано ✓';
+    btn.classList.add('copied');
+    setTimeout(function(){
+      btn.textContent = original;
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+}
+</script>
+
+</body>
+</html>
