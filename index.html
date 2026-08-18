@@ -259,7 +259,7 @@
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж — репо готове (Next.js+Redis, dark Nordic mobile-friendly дашборд), треба: DataForSEO ключі, реальний список 120 магазинів, Redis+Vercel деплой.</div>
+          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж — репо готове (Next.js+Redis, dark Nordic mobile-friendly дашборд), DataForSEO ключі вже підключено й перевірено. Лишилось: реальний список 120 магазинів, Redis+Vercel деплой.</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
@@ -323,16 +323,16 @@
         </div>
         <span class="badge green">Запущено</span>
       </div>
-      <p class="desc">Приватна панель залишку платних ресурсів (Cloudinary, Anthropic, GitHub) для всіх ботів — з прогнозом вичерпання і кнопкою ручного оновлення балансу.</p>
+      <p class="desc">Приватна панель залишку платних ресурсів (Cloudinary, DataForSEO, Anthropic, GitHub) для всіх ботів — з прогнозом вичерпання і кнопкою ручного оновлення балансу.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Додано кнопку на сайті для ручного оновлення балансу Anthropic (зберігається у Firestore, без редеплою) · 10.08.2026</p>
+      <p class="changes-text">Додано DataForSEO як живий ресурс (баланс через appendix/user_data, той самий used/limit/прогноз, що й Cloudinary) — усі 7 карток перевірено чисті · 18.08.2026</p>
       <div class="links">
         <a class="pill" href="https://github.com/romanchuk82-ctrl/resource-dashboard" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Продовж resource-dashboard — перевір curl /api/usage, чи всі картки чисті.</div>
+          <div class="continue-text" data-copy>Продовж resource-dashboard — DataForSEO вже живий і перевірений. Якщо з'явиться новий платний ресурс, додай його так само: fetch-функція в api/_lib/providers.js, картка в api/usage.js, знімок у api/cron-snapshot.js.</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
