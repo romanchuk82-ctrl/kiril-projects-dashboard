@@ -227,15 +227,15 @@
 
   <div class="topbar">
     <span>Пульт керування</span>
-    <span id="updatedDate">оновлено 14.08.2026</span>
+    <span id="updatedDate">оновлено 18.08.2026</span>
   </div>
 
   <h1>Проєкти Кіріла</h1>
 
   <div class="stats">
-    <div class="stat-box"><div class="stat-num total">8</div><div class="stat-label">Усього</div></div>
+    <div class="stat-box"><div class="stat-num total">9</div><div class="stat-label">Усього</div></div>
     <div class="stat-box"><div class="stat-num launched">4</div><div class="stat-label">Запущено</div></div>
-    <div class="stat-box"><div class="stat-num dev">3</div><div class="stat-label">У розробці</div></div>
+    <div class="stat-box"><div class="stat-num dev">4</div><div class="stat-label">У розробці</div></div>
     <div class="stat-box"><div class="stat-num waiting">1</div><div class="stat-label">Чекає доступів</div></div>
   </div>
 
@@ -428,6 +428,30 @@
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
           <div class="continue-text" data-copy>Прочитай CLAUDE.md в jysk-event-bot-template і продовж — базовий generic-шаблон event-бота готовий (адмінка логін/пароль, плейсхолдер-дані, задеплоєно на Vercel), перевір що ще треба зачистити/узагальнити перед реальним використанням.</div>
+          <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. JYSK Alerts Tracker -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title-row">
+          <span class="dot blue"></span>
+          <span class="card-title">JYSK Alerts Tracker</span>
+        </div>
+        <span class="badge blue">У розробці</span>
+      </div>
+      <p class="desc">Трекер повітряних тривог (API alerts.in.ua) для аналізу втрачених годин роботи магазинів по регіонах/дистриктах — щоб відділяти цей фактор від реальних проблем продажів у Comp sales звітності.</p>
+      <div class="changes-label">Останні зміни</div>
+      <p class="changes-text">Скелет репо готовий: Node.js клієнт alerts.in.ua API, токен у .env (не закомічено) + GitHub Actions secret, smoke-test пройшов успішно (28 активних тривог) · 18.08.2026</p>
+      <div class="links">
+        <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-alerts-tracker" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="continue-box">
+        <div class="continue-label">Продовжити</div>
+        <div class="continue-body">
+          <div class="continue-text" data-copy>Прочитай jysk_alerts_tracker_project пам'ять і продовж — репо-скелет готовий (Node.js, alerts.in.ua API, smoke-test пройшов), треба узгодити з Кірілом дизайн аналізу втрачених годин по дистриктах перед подальшою розробкою.</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
