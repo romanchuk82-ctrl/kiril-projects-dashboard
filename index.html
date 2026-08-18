@@ -442,9 +442,9 @@
         </div>
         <span class="badge green">Запущено</span>
       </div>
-      <p class="desc">Втрачені робочі години через повітряні тривоги, рік-до-року: Україна → Регіон → Дистрикт → Магазин, дані з УРТЦ — щоб відділяти цей фактор від реальних проблем продажів у Comp sales звітності.</p>
+      <p class="desc">Втрачені робочі години через повітряні тривоги, рік-до-року, по районах (не областях): Україна → Регіон → Дистрикт → Магазин — щоб відділяти цей фактор від реальних проблем продажів у Comp sales звітності.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Перейшли з Claude-артефакту на живий публічний сайт на Vercel: щоденний cron сам "клікає" по Power BI звіту УРТЦ (реального API немає) через headless-браузер, дані оновлюються автоматично · 18.08.2026</p>
+      <p class="changes-text">Перейшли з Power BI-скрапера (УРТЦ, лише область) на сирий датасет тривог з GitHub — тепер по районах (Павлоград ≠ Дніпро), 12 місяців з реальним рік-до-року замість одного, і без headless-браузера взагалі · 18.08.2026</p>
       <div class="links">
         <a class="pill" href="https://jysk-alerts-dashboard.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-alerts-dashboard" target="_blank" rel="noopener">GitHub ↗</a>
@@ -452,7 +452,7 @@
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Прочитай jysk_alerts_tracker_project пам'ять і продовж — живий сайт jysk-alerts-dashboard.vercel.app вже працює (Region→District→Store, щоденний cron-скрапер УРТЦ через Playwright на Vercel), перевір чи є нові місяці даних і чи cron відпрацював без помилок.</div>
+          <div class="continue-text" data-copy>Прочитай jysk_alerts_tracker_project пам'ять і продовж — живий сайт jysk-alerts-dashboard.vercel.app вже працює на районному рівні (GitHub sirens dataset, щоденний cron, без браузера), перевір чи є нові місяці даних і чи cron відпрацював без помилок.</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
