@@ -252,7 +252,7 @@
       </div>
       <p class="desc">Дашборд моніторингу відгуків по 121 магазину JYSK: Google Maps (DataForSEO) + оцінки терміналів Staffino, рейтинги мережі/регіону/дистрикту/магазину, стрічка відгуків зі статусами й відповідальними, Telegram-алерти негативу + ранковий дайджест.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Мігровано на Supabase, головний дашборд на серверній агрегації. Дані тепер 100% реальні: Google 11 102 відгуки (2021+, DataForSEO, ~$2), Staffino 17 998 kiosk-оцінок (переписав зламаний скрейпер під новий UI). Staffino поки лише ~7 тижнів (лип–сер 2026) — глибша історія потребує ще збору · 27.08.2026</p>
+      <p class="changes-text">Мігровано на Supabase, дашборд на серверній агрегації, дані 100% реальні. Google: 11 102 відгуки (2021+, DataForSEO, ~$2). Staffino: 323 676 kiosk-оцінок за 2024–2026 — витягнув через нативний CSV-експорт Staffino (переписав скрейпер + зламав механізм експорту). YoY-порівняння тепер працює · 27.08.2026</p>
       <div class="links">
         <a class="pill" href="https://jysk-customer-voice-v2.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-customer-voice-v2" target="_blank" rel="noopener">GitHub ↗</a>
@@ -260,7 +260,7 @@
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж. v2 на Supabase, дашборд на серверній агрегації, дані 100% реальні (Google 11 102 з 2021+, Staffino 17 998 за лип–сер 2026). Відкрите: (1) Staffino глибша історія — доскребти page=N або зламати нативний CSV-експорт Staffino; (2) J020 без Google (один postTask); (3) серверна агрегація для 6 інших сторінок; (4) баг lib/auth.mjs verifySession (непідписані токени).</div>
+          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж. v2 на Supabase, дашборд на серверній агрегації, дані 100% реальні: Google 11 102 (2021+), Staffino 323 676 (2024-08 → 2026-08, через нативний CSV-експорт). YoY працює. Відкрите: (1) J020 без Google — один postTask; (2) серверна агрегація для 6 інших сторінок; (3) баг lib/auth.mjs verifySession (непідписані токени).</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
