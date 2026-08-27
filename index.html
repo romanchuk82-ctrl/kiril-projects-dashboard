@@ -252,7 +252,7 @@
       </div>
       <p class="desc">Дашборд моніторингу відгуків по 121 магазину JYSK: Google Maps (DataForSEO) + оцінки терміналів Staffino, рейтинги мережі/регіону/дистрикту/магазину, стрічка відгуків зі статусами й відповідальними, Telegram-алерти негативу + ранковий дайджест.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">Померла quota безкоштовного Neon (усі запити падали, дашборд показував нулі) → мігровано на Supabase через Vercel Marketplace, залито 62k відгуків, прод знову працює. Лишилось: рефактор на серверну агрегацію, щоб не палити egress Supabase · 27.08.2026</p>
+      <p class="changes-text">Мігровано з мертвої quota Neon на Supabase (Vercel Marketplace), залито 62k відгуків. Головний дашборд переведено на серверну агрегацію (~20 КБ на запит замість десятків МБ) — egress більше так не горить. Дані поки що demo-seed; реальний збір — окремий платний крок · 27.08.2026</p>
       <div class="links">
         <a class="pill" href="https://jysk-customer-voice-v2.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-customer-voice-v2" target="_blank" rel="noopener">GitHub ↗</a>
@@ -260,7 +260,7 @@
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж. v2 (jysk-customer-voice-v2) працює на Supabase (мігровано з Neon 27.08.2026, 62k відгуків залито). Відкрите: рефактор pages/index.js + 6 сторінок з useReviewsData mass-fetch на серверну агрегацію через /api/overview-stats, щоб не вичерпати egress Supabase Free; плюс баг у lib/auth.mjs verifySession (приймає непідписані токени).</div>
+          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж. v2 працює на Supabase (мігровано з Neon 27.08.2026). Головний дашборд уже на серверній агрегації через /api/overview-stats. Відкрите: те саме для 6 інших сторінок (attention/dynamics/rating/regions/regions/stores) з useReviewsData; баг lib/auth.mjs verifySession (приймає непідписані токени); реальний збір даних DataForSEO/Staffino — тільки з окремим підтвердженням вартості від Кіріла.</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
