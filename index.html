@@ -234,8 +234,8 @@
 
   <div class="stats">
     <div class="stat-box"><div class="stat-num total">10</div><div class="stat-label">Усього</div></div>
-    <div class="stat-box"><div class="stat-num launched">5</div><div class="stat-label">Запущено</div></div>
-    <div class="stat-box"><div class="stat-num dev">4</div><div class="stat-label">У розробці</div></div>
+    <div class="stat-box"><div class="stat-num launched">6</div><div class="stat-label">Запущено</div></div>
+    <div class="stat-box"><div class="stat-num dev">3</div><div class="stat-label">У розробці</div></div>
     <div class="stat-box"><div class="stat-num waiting">1</div><div class="stat-label">Чекає доступів</div></div>
   </div>
 
@@ -245,14 +245,14 @@
     <div class="card">
       <div class="card-head">
         <div class="card-title-row">
-          <span class="dot orange"></span>
+          <span class="dot green"></span>
           <span class="card-title">JYSK Customer Voice</span>
         </div>
-        <span class="badge orange">Заблоковано</span>
+        <span class="badge green">Запущено</span>
       </div>
       <p class="desc">Дашборд моніторингу відгуків по 121 магазину JYSK: Google Maps (DataForSEO) + оцінки терміналів Staffino, рейтинги мережі/регіону/дистрикту/магазину, стрічка відгуків зі статусами й відповідальними, Telegram-алерти негативу + ранковий дайджест.</p>
       <div class="changes-label">Останні зміни</div>
-      <p class="changes-text">v2 задеплоєно (Next.js + Neon Postgres, 62k відгуків: Google + Staffino). ПРОД-ДАШБОРД ЛЕЖИТЬ: вичерпано quota трафіку безкоштовного плану Neon — усі запити до БД падають, картки показують нулі. Треба апгрейд плану Neon або скидання квоти · 27.08.2026</p>
+      <p class="changes-text">Померла quota безкоштовного Neon (усі запити падали, дашборд показував нулі) → мігровано на Supabase через Vercel Marketplace, залито 62k відгуків, прод знову працює. Лишилось: рефактор на серверну агрегацію, щоб не палити egress Supabase · 27.08.2026</p>
       <div class="links">
         <a class="pill" href="https://jysk-customer-voice-v2.vercel.app" target="_blank" rel="noopener">Сайт ↗</a>
         <a class="pill" href="https://github.com/romanchuk82-ctrl/jysk-customer-voice-v2" target="_blank" rel="noopener">GitHub ↗</a>
@@ -260,7 +260,7 @@
       <div class="continue-box">
         <div class="continue-label">Продовжити</div>
         <div class="continue-body">
-          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж. v2 (jysk-customer-voice-v2, Neon Postgres) задеплоєно з 62k відгуків, але прод-дашборд показує нулі — вичерпано data-transfer quota безкоштовного плану Neon, усі запити до БД падають. Треба рішення Кіріла: апгрейд плану Neon (~$19/міс), чекати місячного скидання квоти, або міграція БД зі снапшоту. Потім — рефактор дашборду на серверну агрегацію замість вигрібання 25k рядків на клієнт.</div>
+          <div class="continue-text" data-copy>Прочитай jysk_customer_voice_project пам'ять і продовж. v2 (jysk-customer-voice-v2) працює на Supabase (мігровано з Neon 27.08.2026, 62k відгуків залито). Відкрите: рефактор pages/index.js + 6 сторінок з useReviewsData mass-fetch на серверну агрегацію через /api/overview-stats, щоб не вичерпати egress Supabase Free; плюс баг у lib/auth.mjs verifySession (приймає непідписані токени).</div>
           <button class="copy-btn" onclick="copyText(this)">Копіювати</button>
         </div>
       </div>
