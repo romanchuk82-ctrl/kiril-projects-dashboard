@@ -2,7 +2,7 @@ const SOURCE_TTL_MS = 30 * 60 * 1000;
 const MAX_AGE_MIN = 180;
 const MESSAGE_LIMIT = 60;
 const MAX_REPORTS_PER_DIRECTION = 3;
-const CONCURRENCY = 3;
+const CONCURRENCY = 1;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 const peerCache = new Map();
@@ -189,26 +189,35 @@ async function apiGet(pathname, params = {}) {
   if (quotaState.remaining != null && quotaState.remaining < 25) throw Object.assign(new Error('TGATLAS_QUOTA_LOW'), { code: 'TGATLAS_QUOTA_LOW' });
   const url = new URL(`https://${host}${pathname}`);
   for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, String(v));
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, accept: 'application/json' },
-      cache: 'no-store', signal: ctl.signal
-    });
-    for (const name of ['x-ratelimit-requests-remaining', 'x-ratelimit-rapid-free-plans-hard-limit-remaining', 'x-ratelimit-rapid-free-plans-remaining']) {
-      const value = Number(response.headers.get(name));
-      if (Number.isFinite(value)) { quotaState = { remaining: value, observedAt: new Date().toISOString() }; break; }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, accept: 'application/json' },
+        cache: 'no-store', signal: ctl.signal
+      });
+      for (const name of ['x-ratelimit-requests-remaining', 'x-ratelimit-rapid-free-plans-hard-limit-remaining', 'x-ratelimit-rapid-free-plans-remaining']) {
+        const value = Number(response.headers.get(name));
+        if (Number.isFinite(value)) { quotaState = { remaining: value, observedAt: new Date().toISOString() }; break; }
+      }
+      const body = await response.json().catch(() => null);
+      if (response.status === 429 && attempt < 4) {
+        const retryHeader = Number(response.headers.get('retry-after'));
+        const waitMs = Number.isFinite(retryHeader) && retryHeader > 0 ? retryHeader * 1000 : Math.min(12_000, 1800 * (attempt + 1));
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        continue;
+      }
+      if (!response.ok || body?.error) {
+        const code = body?.code || `HTTP_${response.status}`;
+        throw Object.assign(new Error(code), { code });
+      }
+      return body || {};
+    } finally {
+      clearTimeout(timer);
     }
-    const body = await response.json().catch(() => null);
-    if (!response.ok || body?.error) {
-      const code = body?.code || `HTTP_${response.status}`;
-      throw Object.assign(new Error(code), { code });
-    }
-    return body || {};
-  } finally {
-    clearTimeout(timer);
   }
+  throw Object.assign(new Error('HTTP_429'), { code: 'HTTP_429' });
 }
 
 function sourceByUsername(username) {
@@ -282,7 +291,7 @@ async function fetchInBatches(sources, force = false) {
   for (let index = 0; index < sources.length; index += CONCURRENCY) {
     const batch = await Promise.all(sources.slice(index, index + CONCURRENCY).map(source => fetchSource(source, force)));
     output.push(...batch);
-    if (index + CONCURRENCY < sources.length) await new Promise(resolve => setTimeout(resolve, 250));
+    if (index + CONCURRENCY < sources.length) await new Promise(resolve => setTimeout(resolve, 700));
   }
   return output;
 }

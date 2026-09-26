@@ -112,3 +112,7 @@ footer a{color:inherit;display:inline-flex;align-items:center;min-height:44px}
   .telegram-links a,.telegram-chat-main{min-height:44px;display:inline-flex;align-items:center;padding:8px 10px;background:#fff;border:1px solid #D7E6EE;border-radius:8px}
 }
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* tgAtlas on-demand */
+.tg-load-btn{appearance:none;border:1px solid rgba(11,42,74,.18);background:#fff;color:#0b2a4a;border-radius:10px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer;min-height:40px}.tg-load-btn:hover{background:#f4f7fa}.tg-load-btn:disabled{opacity:.65;cursor:wait}
