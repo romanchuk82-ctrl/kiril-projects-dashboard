@@ -52,6 +52,21 @@ async function serveStatic(res, filePath) {
   }
 }
 
+async function startupDiag() {
+  if (process.env.BORDER_STARTUP_DIAG !== '1') return;
+  for (const direction of ['UA_EU','EU_UA']) {
+    try {
+      let payload=null,code=200;
+      const req={method:'GET',query:{direction},headers:{}};
+      const res={status(c){code=c;return this},json(body){payload=body;return this}};
+      await aggregateHandler(req,res);
+      const official=payload?.sourceStatus?.official||{};
+      const officialSources=(payload?.crossings||[]).flatMap(x=>x.sources||[]).filter(x=>String(x.source||'').startsWith('official_'));
+      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,officialLabels:[...new Set(officialSources.map(x=>x.label))],cameras:(payload?.crossings||[]).filter(x=>x.camera).length,here:payload?.sourceStatus?.here}));
+    } catch(e) { console.log('[border-selftest]',JSON.stringify({direction,error:String(e?.message||e)})); }
+  }
+}
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -74,4 +89,4 @@ http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ ok: false, error: 'internal_error' }));
   }
-}).listen(port, '0.0.0.0', () => console.log(`Border Monitor UA listening on ${port}`));
+}).listen(port, '0.0.0.0', () => {console.log(`Border Monitor UA listening on ${port}`);setTimeout(startupDiag,800)});
