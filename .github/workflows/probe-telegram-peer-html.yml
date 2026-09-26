@@ -1,0 +1,28 @@
+name: Probe Telegram peer ids from public HTML
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-telegram-peer-html.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect known peer ids
+        shell: bash
+        run: |
+          set -u
+          declare -A known=( [hryshiv]=1713079377 [Krakivets]=1561698401 [shegunimeduka]=1749456888 )
+          for chat in hryshiv Krakivets shegunimeduka; do
+            echo "===== $chat known=${known[$chat]} ====="
+            for suffix in '' '?embed=1' '?embed=1&mode=tme' '/?embed=1' ; do
+              url="https://t.me/$chat$suffix"
+              file="/tmp/${chat}_$(echo "$suffix" | tr '/?&=' '_').html"
+              code=$(curl -L --connect-timeout 10 --max-time 30 -A 'Mozilla/5.0' -sS -o "$file" -w '%{http_code}' "$url" || true)
+              echo "URL $url HTTP $code bytes=$(wc -c < "$file" 2>/dev/null || echo 0)"
+              grep -n -E "${known[$chat]}|-100${known[$chat]}|data-peer|peer.?id|channel.?id|chat.?id|tgme_widget|tgme_page" "$file" 2>/dev/null | head -40 || true
+              echo 'LONGNUMS:'
+              grep -oE '[0-9]{9,14}' "$file" 2>/dev/null | sort -u | head -40 || true
+            done
+          done
