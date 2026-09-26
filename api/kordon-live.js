@@ -60,10 +60,11 @@ function parseUpstreamTime(text, nowMs = Date.now()) {
 }
 
 function parseCards(html) {
+  const source = String(html || '');
   const items = [];
-  const starts = [...String(html || '').matchAll(/<div\s+class=["'][^"']*\bkbq-single\b[^"']*["'][^>]*>/gi)].map(m => m.index);
+  const starts = [...source.matchAll(/<div\s+class=["']kbq-single\s+kbq-(?:low|mid|high)["'][^>]*>/gi)].map(m => m.index);
   for (let i = 0; i < starts.length; i += 1) {
-    const chunk = String(html || '').slice(starts[i], starts[i + 1] ?? Math.min(String(html || '').length, starts[i] + 5000));
+    const chunk = source.slice(starts[i], starts[i + 1] ?? Math.min(source.length, starts[i] + 5000));
     const nameMatch = chunk.match(/kbq-single-point["'][^>]*>([^<]+)</i);
     const countMatch = chunk.match(/kbq-single-count["'][^>]*>\s*(\d{1,4})\s*</i);
     if (!nameMatch || !countMatch) continue;
