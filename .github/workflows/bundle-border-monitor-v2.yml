@@ -69,4 +69,5 @@ jobs:
           git add server.js server.bundle.cjs
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Bundle production runtime [bundle-v2]"
+          git pull --rebase origin border-monitor
           git push origin HEAD:border-monitor
