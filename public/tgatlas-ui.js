@@ -3,6 +3,8 @@
   const baseTelegramBlock = telegramBlock;
   const baseTelegramStatusLabel = telegramStatusLabel;
   const baseRender = render;
+  const autoDone = new Set();
+  const autoRunning = new Set();
 
   telegramStatusLabel = function(status, details) {
     const count = details?.totalSources ? ` ${details.connectedSources || 0}/${details.totalSources}` : '';
@@ -43,11 +45,9 @@
     };
   }
 
-  async function loadTelegram(channel, button) {
-    if (!channel || button.dataset.loading === '1') return;
-    button.dataset.loading = '1';
-    button.disabled = true;
-    button.textContent = 'Перевіряю…';
+  async function loadTelegram(channel, button = null, silent = false) {
+    if (!channel || button?.dataset?.loading === '1') return false;
+    if (button) { button.dataset.loading = '1'; button.disabled = true; button.textContent = 'Перевіряю…'; }
     try {
       const response = await fetch(`/snapshot?username=${encodeURIComponent(channel)}`, { cache: 'no-store' });
       const data = await response.json();
@@ -60,14 +60,31 @@
       row.sources.push(...fresh);
       row.humanReports = fresh.length;
       row.humanSignal = fresh.length > 1 ? 'corroborated' : fresh.length === 1 ? 'reported' : null;
+      if (typeof recomputeTimeTrust === 'function') recomputeTimeTrust(row);
       const meta = (data.sources || []).find(s => String(s.channel || '').toLowerCase() === key);
       if (meta) row.telegramChat = { label: meta.label, channel: meta.channel, url: meta.channelUrl, status: meta.status, freshReports: meta.items || 0, messagesScanned: meta.messagesScanned || 0, newestMessageAt: meta.newestMessageAt || null };
       render();
+      return Boolean(row.timeReliable);
     } catch (error) {
-      button.disabled = false;
-      button.dataset.loading = '0';
-      button.textContent = 'Повторити Telegram';
-      console.warn('[telegram-ui]', String(error?.message || error));
+      if (button) { button.disabled = false; button.dataset.loading = '0'; button.textContent = 'Повторити Telegram'; }
+      if (!silent) console.warn('[telegram-ui]', String(error?.message || error));
+      return false;
+    }
+  }
+
+  async function autoConfirmBest() {
+    const dir = state.direction;
+    if (autoDone.has(dir) || autoRunning.has(dir)) return;
+    autoRunning.add(dir);
+    try {
+      const candidates = state.rows.filter(r => r.waitMin != null && !r.stale && r.telegramChat?.channel && r.timeReliable !== true).sort((a,b)=>a.waitMin-b.waitMin).slice(0,3);
+      for (const row of candidates) {
+        const ok = await loadTelegram(row.telegramChat.channel, null, true);
+        if (ok) break;
+      }
+    } finally {
+      autoRunning.delete(dir);
+      autoDone.add(dir);
     }
   }
 
@@ -76,5 +93,6 @@
     document.querySelectorAll('.tg-load-btn').forEach(button => {
       button.addEventListener('click', () => loadTelegram(button.dataset.channel, button), { once: true });
     });
+    setTimeout(autoConfirmBest, 0);
   };
 })();
