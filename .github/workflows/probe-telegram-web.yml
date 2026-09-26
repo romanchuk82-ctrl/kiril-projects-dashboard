@@ -1,0 +1,30 @@
+name: Probe Telegram Web Preview
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/probe-telegram-web.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe public Telegram previews
+        shell: bash
+        run: |
+          set -euo pipefail
+          for chat in Krakivets hryshiv shegunimeduka; do
+            url="https://t.me/s/$chat"
+            code=$(curl -L --connect-timeout 10 --max-time 30 -A 'Mozilla/5.0' -sS -o "/tmp/$chat.html" -w '%{http_code}' "$url" || true)
+            posts=$(grep -o 'tgme_widget_message_wrap' "/tmp/$chat.html" 2>/dev/null | wc -l | tr -d ' ')
+            title=$(grep -o '<meta property="og:title" content="[^"]*"' "/tmp/$chat.html" 2>/dev/null | head -1 | sed 's/.*content="//;s/"$//' || true)
+            newest=$(grep -o 'data-post="[^"]*"' "/tmp/$chat.html" 2>/dev/null | tail -1 | sed 's/data-post="//;s/"//' || true)
+            printf '%s http=%s posts=%s newest=%s title=%s\n' "$chat" "$code" "$posts" "$newest" "$title"
+          done
+          test "$(grep -o 'tgme_widget_message_wrap' /tmp/Krakivets.html | wc -l)" -gt 0
+          test "$(grep -o 'tgme_widget_message_wrap' /tmp/hryshiv.html | wc -l)" -gt 0
+          test "$(grep -o 'tgme_widget_message_wrap' /tmp/shegunimeduka.html | wc -l)" -gt 0
