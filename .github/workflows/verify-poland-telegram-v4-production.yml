@@ -39,5 +39,5 @@ jobs:
             jq -c '[.crossings[]|select(.countryCode=="PL")|. + {displayQueue:(if .queueCars!=null then .queueCars elif .telegramQueueCars!=null then .telegramQueueCars else null end)}|select(.displayQueue!=null)]|sort_by(.displayQueue)|.[0]|{name,displayQueue}' "/tmp/$dir.json"
           done
 
-          jq -e '[.crossings[]|select(.countryCode=="PL" and (.waitMin!=null or .telegramWaitMin!=null))]|length<2 and [.crossings[]|select(.countryCode=="PL" and (.queueCars!=null or .telegramQueueCars!=null))]|length>=2' /tmp/UA_EU.json >/dev/null
+          jq -e '(([.crossings[]|select(.countryCode=="PL" and (.waitMin!=null or .telegramWaitMin!=null))]|length)<2) and (([.crossings[]|select(.countryCode=="PL" and (.queueCars!=null or .telegramQueueCars!=null))]|length)>=2)' /tmp/UA_EU.json >/dev/null
           jq -e '[.crossings[]|select((((.telegramChat.channel // "")|ascii_downcase)=="hryshiv"))]|length==1' /tmp/EU_UA.json >/dev/null
