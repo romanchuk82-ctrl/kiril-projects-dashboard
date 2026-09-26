@@ -15,7 +15,7 @@ jobs:
           set -euo pipefail
           base='https://border-monitor-ua.onrender.com'
           curl -fsS "$base/health" | jq -e '.ok==true' >/dev/null
-          curl -fsS "$base/app.js" | grep -q 'Не підтверджено Telegram'
+          curl -fsS "$base/app.js" | grep -q 'Telegram підтвердив ситуацію'
           for dir in UA_EU EU_UA; do
             curl -fsS --max-time 90 "$base/api/aggregate?direction=$dir" -o "/tmp/before-$dir.json"
             mapfile -t chats < <(jq -r '[.crossings[]|select(.waitMin!=null and .stale!=true and .telegramChat.channel!=null)]|sort_by(.waitMin)|.[0:3]|.[].telegramChat.channel' "/tmp/before-$dir.json")
@@ -24,8 +24,8 @@ jobs:
               curl -fsS --max-time 70 "$base/snapshot?username=$chat" >/dev/null
             done
             curl -fsS --max-time 90 "$base/api/aggregate?direction=$dir" -o "/tmp/after-$dir.json"
-            jq -c --arg dir "$dir" '{direction:$dir,total:(.crossings|length),withTime:([.crossings[]|select(.waitMin!=null)]|length),confirmed:([.crossings[]|select(.timeReliability=="confirmed")]|length),unconfirmed:([.crossings[]|select(.timeReliability=="unconfirmed")]|length),conflict:([.crossings[]|select(.timeReliability=="conflict")]|length),examples:([.crossings[]|select(.waitMin!=null)|{name,waitMin,baseWaitMin,telegramWaitMin,telegramTimeReports,timeReliability,timeReliable,timeReliabilityReason}]|.[0:8])}' "/tmp/after-$dir.json"
+            jq -c --arg dir "$dir" '{direction:$dir,total:(.crossings|length),withTime:([.crossings[]|select(.waitMin!=null)]|length),confirmed:([.crossings[]|select(.timeReliability=="confirmed")]|length),supported:([.crossings[]|select(.timeReliability=="supported")]|length),reliable:([.crossings[]|select(.timeReliable==true)]|length),unconfirmed:([.crossings[]|select(.timeReliability=="unconfirmed")]|length),conflict:([.crossings[]|select(.timeReliability=="conflict")]|length),examples:([.crossings[]|select(.waitMin!=null)|{name,waitMin,baseWaitMin,telegramWaitMin,telegramTimeReports,telegramFreshReports,telegramQualitative,timeReliability,timeReliable,timeReliabilityReason}]|.[0:10])}' "/tmp/after-$dir.json"
             jq -e '[.crossings[]|select(.waitMin!=null and (.timeReliability==null))]|length==0' "/tmp/after-$dir.json" >/dev/null
-            jq -e '[.crossings[]|select(.timeReliability=="confirmed" and .timeReliable!=true)]|length==0' "/tmp/after-$dir.json" >/dev/null
+            jq -e '[.crossings[]|select((.timeReliability=="confirmed" or .timeReliability=="supported") and .timeReliable!=true)]|length==0' "/tmp/after-$dir.json" >/dev/null
             jq -e '[.crossings[]|select((.timeReliability=="unconfirmed" or .timeReliability=="conflict") and .timeReliable==true)]|length==0' "/tmp/after-$dir.json" >/dev/null
           done
