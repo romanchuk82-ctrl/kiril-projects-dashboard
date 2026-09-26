@@ -9,11 +9,11 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect public resolver
+      - name: Inspect public resolver JS
         run: |
           set -euo pipefail
-          curl -fsSL --max-time 30 'https://telecrow.com/tools/telegram-username-to-id' -o /tmp/page.html
-          echo '--- candidate endpoints/scripts ---'
-          grep -Eo '(/api/[A-Za-z0-9_/?=&.-]+|src="[^"]+\.js[^"]*")' /tmp/page.html | head -80 || true
-          echo '--- fetch snippets ---'
-          grep -nE 'fetch\(|axios|username|lookup|resolve' /tmp/page.html | head -80 || true
+          curl -fsSL --max-time 30 'https://telecrow.com/assets/ToolUsernameToId-811ac531.js' -o /tmp/tool.js
+          echo '--- endpoints ---'
+          grep -Eo 'https?://[^"'"' ]+|/api/[A-Za-z0-9_/?=&.${}-]+' /tmp/tool.js | head -100 || true
+          echo '--- context ---'
+          sed 's/;/;\n/g' /tmp/tool.js | grep -nE 'axios|fetch|username|lookup|resolve|/api/' | head -120 || true
