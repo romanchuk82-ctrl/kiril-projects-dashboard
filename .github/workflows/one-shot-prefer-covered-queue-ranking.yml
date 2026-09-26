@@ -1,0 +1,68 @@
+name: One-shot prefer covered queue ranking
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - .github/workflows/one-shot-prefer-covered-queue-ranking.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch ranking selection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/app.js')
+          s=p.read_text()
+          old="""function comparisonFor(rows){
+  const timed=rankable(rows);
+  const queued=rows.filter(r=>queueRankValue(r)!=null&&!r.stale).sort((a,b)=>queueRankValue(a)-queueRankValue(b)||((displayAgeMin(a)??99999)-(displayAgeMin(b)??99999)));
+  if(timed.length>=2)return{mode:'time',list:timed,best:timed[0],worst:timed[timed.length-1]};
+  if(queued.length>=2)return{mode:'queue',list:queued,best:queued[0],worst:queued[queued.length-1]};
+  if(timed.length===1)return{mode:'time_single',list:timed,best:timed[0],worst:null};
+  if(queued.length===1)return{mode:'queue_single',list:queued,best:queued[0],worst:null};
+  return{mode:'none',list:[],best:null,worst:null};
+}"""
+          new="""function comparisonFor(rows){
+  const timed=rankable(rows);
+  const trustedTimed=timed.filter(r=>r.timeReliable===true);
+  const queued=rows.filter(r=>queueRankValue(r)!=null&&!r.stale).sort((a,b)=>queueRankValue(a)-queueRankValue(b)||((displayAgeMin(a)??99999)-(displayAgeMin(b)??99999)));
+  const queueHasBetterCoverage=queued.length>=2&&(trustedTimed.length<2||queued.length>=trustedTimed.length+2||queued.length>=timed.length+3);
+  if(queueHasBetterCoverage)return{mode:'queue',list:queued,best:queued[0],worst:queued[queued.length-1]};
+  if(trustedTimed.length>=2)return{mode:'time',list:trustedTimed,best:trustedTimed[0],worst:trustedTimed[trustedTimed.length-1]};
+  if(timed.length>=2&&queued.length<2)return{mode:'time',list:timed,best:timed[0],worst:timed[timed.length-1]};
+  if(queued.length>=2)return{mode:'queue',list:queued,best:queued[0],worst:queued[queued.length-1]};
+  if(trustedTimed.length===1)return{mode:'time_single',list:trustedTimed,best:trustedTimed[0],worst:null};
+  if(queued.length===1)return{mode:'queue_single',list:queued,best:queued[0],worst:null};
+  if(timed.length===1)return{mode:'time_single',list:timed,best:timed[0],worst:null};
+  return{mode:'none',list:[],best:null,worst:null};
+}"""
+          if old not in s: raise SystemExit('comparisonFor marker missing')
+          s=s.replace(old,new,1)
+          oldtxt='Порівняння за кількістю авто та прямими свіжими повідомленнями «без черги».'
+          newtxt='Рейтинг за найширшим набором свіжих підтверджених даних: кількість авто та прямі повідомлення «без черги».'
+          s=s.replace(oldtxt,newtxt,1)
+          p.write_text(s)
+          PY
+          node --check public/app.js
+          grep -q 'queueHasBetterCoverage' public/app.js
+      - name: Commit patch and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-prefer-covered-queue-ranking.yml
+          git add public/app.js
+          git commit -m "Prefer queue ranking when coverage is stronger"
+          git push origin HEAD:border-monitor
