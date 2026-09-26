@@ -1,0 +1,84 @@
+name: One-shot qualitative queue ranking fix
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - .github/workflows/one-shot-border-ranking-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch ranking logic safely
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('public/app.js')
+          s = p.read_text()
+
+          marker = "function timeTrustText(r){"
+          helper = "function qualitativeNoQueue(r){const fresh=(r?.sources||[]).filter(s=>s?.source==='telegram'&&s.ageMin!=null&&Number(s.ageMin)>=0&&Number(s.ageMin)<=TG_TRUST_MAX_AGE).sort((a,b)=>Number(a.ageMin)-Number(b.ageMin));let bestLow=null,bestHigh=null;for(const s of fresh){if(telegramQueueCount(s)!=null)continue;const sig=telegramQualitativeSignal(s);if(sig==='low'&&bestLow==null)bestLow=Number(s.ageMin);if(sig==='high'&&bestHigh==null)bestHigh=Number(s.ageMin)}return bestLow!=null&&(bestHigh==null||bestLow<bestHigh)}\n"
+          if 'function qualitativeNoQueue(r)' not in s:
+              if marker not in s: raise SystemExit('timeTrustText marker missing')
+              s = s.replace(marker, helper + marker, 1)
+
+          old = "if(r.telegramQueueCars!=null)return`💬 Telegram: ${r.telegramQueueCars} авто · часу немає`;return'—'}"
+          new = "if(r.telegramQueueCars!=null)return`💬 Telegram: ${r.telegramQueueCars} авто · часу немає`;if(qualitativeNoQueue(r))return'💬 Telegram: черги немає · часу немає';return'—'}"
+          if old in s: s = s.replace(old, new, 1)
+
+          dq = "function displayQueue(r){const v=r?.queueCars!=null?Number(r.queueCars):(r?.telegramQueueCars!=null?Number(r.telegramQueueCars):null);return Number.isFinite(v)?Math.max(0,Math.round(v)):null}\n"
+          qhelpers = "function queueRankValue(r){const q=displayQueue(r);if(q!=null)return q;return qualitativeNoQueue(r)?0:null}\nfunction queueRankText(r){const q=displayQueue(r);if(q!=null)return`${q} авто`;return qualitativeNoQueue(r)?'без черги':'—'}\n"
+          if 'function queueRankValue(r)' not in s:
+              if dq not in s: raise SystemExit('displayQueue marker missing')
+              s = s.replace(dq, dq + qhelpers, 1)
+
+          old = "function displayQueueText(r){const q=displayQueue(r);if(q==null)return'кількість авто не вказана';return `${q} авто в черзі${r.queueCars==null&&r.telegramQueueCars!=null?' · Telegram':''}`}"
+          new = "function displayQueueText(r){const q=displayQueue(r);if(q==null)return qualitativeNoQueue(r)?'черги немає · Telegram':'кількість авто не вказана';return `${q} авто в черзі${r.queueCars==null&&r.telegramQueueCars!=null?' · Telegram':''}`}"
+          if old in s: s = s.replace(old, new, 1)
+
+          old = "const queued=rows.filter(r=>displayQueue(r)!=null&&!r.stale).sort((a,b)=>displayQueue(a)-displayQueue(b));"
+          new = "const queued=rows.filter(r=>queueRankValue(r)!=null&&!r.stale).sort((a,b)=>queueRankValue(a)-queueRankValue(b)||((displayAgeMin(a)??99999)-(displayAgeMin(b)??99999)));"
+          if old not in s: raise SystemExit('comparison queue marker missing')
+          s = s.replace(old, new, 1)
+
+          old = "const raw=currentRows(),cmp=comparisonFor(raw);"
+          new = "const raw=currentRows(),cmp=comparisonFor(raw),queueMode=cmp.mode==='queue'||cmp.mode==='queue_single';"
+          if old not in s: raise SystemExit('render marker missing')
+          s = s.replace(old, new, 1)
+
+          s = s.replace("if(cmp.mode==='queue'||cmp.mode==='queue_single'){const aq=displayQueue(a),bq=displayQueue(b);", "if(queueMode){const aq=queueRankValue(a),bq=queueRankValue(b);", 1)
+          s = s.replace("const aq=displayQueue(a),bq=displayQueue(b);", "const aq=queueRankValue(a),bq=queueRankValue(b);", 1)
+
+          old = "const labels=document.querySelectorAll('.summary-card .summary-label');if(labels[0])labels[0].textContent=cmp.mode==='queue'?'TOP-3 за чергою':'TOP-3 за часом';if(labels[1])labels[1].textContent=cmp.mode==='queue'?'Найбільша черга':'Найдовший час';"
+          new = "const labels=document.querySelectorAll('.summary-card .summary-label');if(labels[0])labels[0].textContent=queueMode?'TOP-3 за чергою':'TOP-3 за часом';if(labels[1])labels[1].textContent=queueMode?'Найбільша черга':'Найдовший час';"
+          if old in s: s = s.replace(old, new, 1)
+
+          s = s.replace('${displayQueue(best)} авто', '${queueRankText(best)}')
+          s = s.replace('Порівняння за кількістю авто. Точного часу по більшості КПП поки немає.', 'Порівняння за кількістю авто та прямими свіжими повідомленнями «без черги». Точного часу по більшості КПП поки немає.', 1)
+          s = s.replace("${cmp.mode==='queue'?`${displayQueue(r)} авто`:displayTimeText(r)}", "${queueMode?queueRankText(r):displayTimeText(r)}")
+          s = s.replace("${displayQueue(r)??'—'}", "${displayQueue(r)??(qualitativeNoQueue(r)?0:'—')}", 1)
+
+          p.write_text(s)
+          PY
+          node --check public/app.js
+          grep -q "function qualitativeNoQueue" public/app.js
+          grep -q "queueRankValue" public/app.js
+      - name: Commit patch and remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-border-ranking-fix.yml
+          git add public/app.js
+          git commit -m "Rank fresh explicit no-queue reports as zero queue"
+          git push origin HEAD:border-monitor
