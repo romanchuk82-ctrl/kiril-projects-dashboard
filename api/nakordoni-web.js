@@ -27,6 +27,9 @@ const PL_PAGES = {
   ]
 };
 
+const WEB_TTL_MS = 2 * 60 * 1000;
+const webCache = new Map();
+
 function decodeHtml(value) {
   return String(value || '')
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
@@ -143,7 +146,10 @@ async function fetchPage(def, direction) {
 }
 
 export async function fetchNakordoniWeb(direction = 'UA_EU') {
-  const defs = PL_PAGES[direction] || PL_PAGES.UA_EU;
+  const key = direction === 'EU_UA' ? 'EU_UA' : 'UA_EU';
+  const cached = webCache.get(key);
+  if (cached && Date.now() - cached.ts < WEB_TTL_MS) return cached.value;
+  const defs = PL_PAGES[key] || PL_PAGES.UA_EU;
   const out = [];
   const failures = [];
   for (let i = 0; i < defs.length; i += 3) {
@@ -153,7 +159,9 @@ export async function fetchNakordoniWeb(direction = 'UA_EU') {
       else failures.push({ name: result.def?.name || 'unknown', error: result.error });
     }
   }
-  return { crossings: out, failures, source: 'nakordoni_web' };
+  const value = { crossings: out, failures, source: 'nakordoni_web', cacheMinutes: WEB_TTL_MS / 60000 };
+  webCache.set(key, { ts: Date.now(), value });
+  return value;
 }
 
 export { parsePage as parseNakordoniPublicPage };
