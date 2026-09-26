@@ -1,0 +1,18 @@
+name: Probe Hryshiv duplicate
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-hryshiv-duplicate.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe aggregate Hryshiv rows
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          curl -fsS --max-time 70 "$base/snapshot?username=hryshiv&refresh=1" >/dev/null
+          curl -fsS --max-time 90 "$base/api/aggregate?direction=EU_UA" -o /tmp/a.json
+          jq -c '{viaRegionalUpstream,telegramLocal,sourceStatus,rows:[.crossings[]|select((.name|ascii_downcase|contains("груш")) or (.telegramChat.channel?=="hryshiv"))|{id,name,ppid,waitMin,baseWaitMin,countryCode,telegramChat,humanReports,timeReliability,timeReliable,sources}]}' /tmp/a.json
