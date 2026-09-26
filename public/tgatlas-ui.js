@@ -81,7 +81,9 @@
       const timed = visible.filter(r => r.waitMin != null || r.telegramWaitMin != null).sort((a,b)=>(a.waitMin ?? a.telegramWaitMin ?? 999999)-(b.waitMin ?? b.telegramWaitMin ?? 999999));
       const noTime = visible.filter(r => r.waitMin == null && r.telegramWaitMin == null);
       const candidates = state.country === 'ALL' ? [...timed, ...noTime].slice(0, 4) : [...timed, ...noTime];
-      for (const row of candidates) await loadTelegram(row.telegramChat.channel, null, true);
+      for (let i = 0; i < candidates.length; i += 3) {
+        await Promise.all(candidates.slice(i, i + 3).map(row => loadTelegram(row.telegramChat.channel, null, true)));
+      }
     } finally {
       autoRunning.delete(key);
       autoDone.add(key);
