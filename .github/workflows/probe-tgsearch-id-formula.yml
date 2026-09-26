@@ -1,0 +1,22 @@
+name: Verify tgsearch peer-id formula
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-tgsearch-id-formula.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract tgsearch result ids
+        shell: bash
+        run: |
+          set -u
+          for chat in hryshiv Krakivets shegunimeduka; do
+            f="/tmp/$chat.html"
+            curl -L --connect-timeout 10 --max-time 30 -A 'Mozilla/5.0' -sS --get 'https://tgsearch.org/search' --data-urlencode "query=$chat" -o "$f"
+            echo "===== $chat ====="
+            grep -oiE 'href="/channel/[0-9]+"[^>]*>|href="https://tgsearch.org/channel/[0-9]+"[^>]*>' "$f" | head -20 || true
+            grep -ni -C3 "$chat" "$f" | head -80 || true
+          done
