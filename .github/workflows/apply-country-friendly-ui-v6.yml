@@ -1,0 +1,33 @@
+name: Apply country friendly UI v6
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-country-friendly-ui-v6.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply patch
+        run: python scripts/country_friendly_ui_v6.py
+      - name: Validate syntax and UI helpers
+        run: |
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+          grep -q 'function displayTimeMin' public/app.js
+          grep -q 'Найшвидше за наявними даними' public/app.js
+          grep -q 'Найменша черга за Telegram' public/app.js
+          grep -q 'const candidates = state.country ===' public/tgatlas-ui.js
+      - name: Commit changes safely
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js
+          git commit -m "Make country view show and rank all available border data"
+          git pull --rebase origin border-monitor
+          git push origin HEAD:border-monitor
