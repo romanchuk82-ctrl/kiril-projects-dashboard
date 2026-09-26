@@ -13,6 +13,17 @@ jobs:
         with:
           ref: border-monitor
           fetch-depth: 0
+      - name: Fix patch replacement escaping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/patch_telegram_time_support_v2.py')
+          s=p.read_text()
+          s=s.replace(",new_backend,s,flags=re.S)",",lambda _m:new_backend,s,flags=re.S)")
+          s=s.replace(",new_front,s,flags=re.S)",",lambda _m:new_front,s,flags=re.S)")
+          s=s.replace(",prov,s2,flags=re.S)",",lambda _m:prov,s2,flags=re.S)")
+          p.write_text(s)
+          PY
       - name: Apply reliability patch v2
         run: python scripts/patch_telegram_time_support_v2.py
       - name: Validate syntax and trust cases
@@ -39,6 +50,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add api/aggregate.js public/app.js
+          git add api/aggregate.js public/app.js scripts/patch_telegram_time_support_v2.py
           git commit -m "Support reliable times with qualitative Telegram evidence"
           git push origin HEAD:border-monitor
