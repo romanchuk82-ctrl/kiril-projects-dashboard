@@ -1,26 +1,16 @@
-import crypto from 'node:crypto';
-import { Logger, TelegramClient } from 'teleproto';
-import { StringSession } from 'teleproto/sessions/index.js';
-
-const TTL_MS = 4 * 60 * 1000;
+const SOURCE_TTL_MS = 30 * 60 * 1000;
 const MAX_AGE_MIN = 180;
 const MESSAGE_LIMIT = 60;
 const MAX_REPORTS_PER_DIRECTION = 3;
-const CONCURRENCY = 4;
-const CONNECTION_TIMEOUT_MS = 25_000;
+const CONCURRENCY = 3;
+const REQUEST_TIMEOUT_MS = 20_000;
 
-let cache = { ts: 0, payload: null };
-let refreshPromise = null;
-let clientState = {
-  fingerprint: null,
-  client: null,
-  connectPromise: null,
-  authorized: false,
-  error: null
-};
+const peerCache = new Map();
+const sourceCache = new Map();
+let fullRefreshPromise = null;
+let quotaState = { remaining: null, observedAt: null };
 
 export const CHAT_SOURCES = [
-  // Poland
   { username: 'Krakivets', label: 'Краківець - Корчова', checkpoint: 'Краківець - Корчова', country: 'Польща', countryCode: 'PL', aliases: ['краківець', 'краковець', 'корчова', 'korczowa'] },
   { username: 'shegunimeduka', label: 'Шегині - Медика', checkpoint: 'Шегині - Медика', country: 'Польща', countryCode: 'PL', aliases: ['шегині', 'медика', 'medyka'] },
   { username: 'rawahrebenne', label: 'Рава-Руська - Гребенне', checkpoint: 'Рава-Руська - Гребенне', country: 'Польща', countryCode: 'PL', aliases: ['рава руська', 'рава-руська', 'гребенне', 'hrebenne'] },
@@ -30,24 +20,20 @@ export const CHAT_SOURCES = [
   { username: 'yagodyn', label: 'Ягодин - Дорогуск', checkpoint: 'Ягодин - Дорогуск', country: 'Польща', countryCode: 'PL', aliases: ['ягодин', 'дорогуск', 'dorohusk'] },
   { username: 'smilnutsa', label: 'Смільниця - Кросценко', checkpoint: 'Смільниця - Кросценко', country: 'Польща', countryCode: 'PL', aliases: ['смільниця', 'кросценко', 'kroscienko', 'krościenko'] },
   { username: 'nyzhankovychi', label: 'Нижанковичі - Мальховичі', checkpoint: 'Нижанковичі - Мальховичі', country: 'Польща', countryCode: 'PL', aliases: ['nyzhankovychi', 'нижанковичі', 'мальховичі', 'malhowice'] },
-  // Slovakia
   { username: 'maluibereznui', label: 'Малий Березний - Убля', checkpoint: 'Малий Березний - Убля', country: 'Словаччина', countryCode: 'SK', aliases: ['малий березний', 'убля', 'ubla', 'ubľa'] },
   { username: 'uzhorodqueue', label: 'Ужгород - Вишнє Нємецьке', checkpoint: 'Ужгород - Вишнє Нємецьке', country: 'Словаччина', countryCode: 'SK', aliases: ['ужгород', 'вишнє немецьке', 'вишнє нємецьке', 'vysne nemecke', 'vyšné nemecké'] },
   { username: 'MaliSelmentsi', label: 'Малі Селменці - Вельке Слеменце', checkpoint: 'Малі Селменці - Вельке Слеменце', country: 'Словаччина', countryCode: 'SK', aliases: ['малі селменці', 'вельке слеменце', 'velke slemence', 'veľké slemence'] },
-  // Romania
   { username: 'parubne', label: 'Порубне - Сірет', checkpoint: 'Порубне - Сірет', country: 'Румунія', countryCode: 'RO', aliases: ['порубне', 'сірет', 'сирет', 'siret'] },
   { username: 'solotkino', label: 'Солотвино - Сігету Мармацієй', checkpoint: 'Солотвино - Сігету Мармацієй', country: 'Румунія', countryCode: 'RO', aliases: ['солотвино', 'сігету', 'сигету', 'sighetu'] },
   { username: 'diakove', label: 'Дякове - Халмеу', checkpoint: 'Дякове - Халмеу', country: 'Румунія', countryCode: 'RO', aliases: ['дякове', 'халмеу', 'halmeu'] },
   { username: 'diakivchi', label: 'Дяківці - Раковець', checkpoint: 'Дяківці - Раковець', country: 'Румунія', countryCode: 'RO', aliases: ['дяківці', 'раковець', 'racovat', 'racovăț'] },
   { username: 'krasnoyilsk', label: 'Красноїльськ - Вікову де Сус', checkpoint: 'Красноїльськ - Вікову де Сус', country: 'Румунія', countryCode: 'RO', aliases: ['красноїльськ', 'красноільськ', 'вікову', 'vicovu'] },
   { username: 'bilacerkvasigetumarmatiei', label: 'Біла Церква - Сігету-Мармацієй', checkpoint: 'Біла Церква - Сігету-Мармацієй', country: 'Румунія', countryCode: 'RO', aliases: ['біла церква', 'сігету', 'сигету', 'sighetu'] },
-  // Hungary
   { username: 'lugankabereg', label: 'Лужанка - Берегшурань', checkpoint: 'Лужанка - Берегшурань', country: 'Угорщина', countryCode: 'HU', aliases: ['лужанка', 'берегшурань', 'beregsurany', 'beregsurány', 'астей'] },
   { username: 'chopzahon', label: 'Чоп (Тиса) - Захонь', checkpoint: 'Чоп (Тиса) - Захонь', country: 'Угорщина', countryCode: 'HU', aliases: ['чоп', 'тиса', 'захонь', 'zahony', 'záhony'] },
   { username: 'viloktisabech', label: 'Вилок - Тісабеч', checkpoint: 'Вилок - Тісабеч', country: 'Угорщина', countryCode: 'HU', aliases: ['вилок', 'тісабеч', 'тисабеч', 'tiszabecs', 'vilok'] },
   { username: 'dzvinkovelonya', label: 'Дзвінкове - Лонья', checkpoint: 'Дзвінкове - Лонья', country: 'Угорщина', countryCode: 'HU', aliases: ['дзвінкове', 'лонья', 'lonya', 'lónya', 'dzvinkove'] },
   { username: 'kosunopunkt', label: 'Косино - Барабаш', checkpoint: 'Косино - Барабаш', country: 'Угорщина', countryCode: 'HU', aliases: ['косино', 'барабаш', 'barabas', 'barabás', 'koson'] },
-  // Moldova
   { username: 'Mohylivcheckpoint', label: 'Могилів-Подільський - Отачь', checkpoint: 'Могилів-Подільський - Отачь', country: 'Молдова', countryCode: 'MD', aliases: ['могилів подільський', 'могилев подольский', 'отач', 'отачь', 'otaci'] },
   { username: 'palankaudobne', label: 'Маяки-Удобне - Паланка', checkpoint: 'Маяки-Удобне - Паланка', country: 'Молдова', countryCode: 'MD', aliases: ['маяки', 'удобне', 'паланка', 'palanca'] },
   { username: 'Rossoshany', label: 'Россошани - Бричани', checkpoint: 'Россошани - Бричани', country: 'Молдова', countryCode: 'MD', aliases: ['россошани', 'росошани', 'бричани', 'briceni'] },
@@ -67,9 +53,7 @@ const SOURCES = [...CHAT_SOURCES, ...GENERAL_SOURCES];
 const CHECKPOINTS = CHAT_SOURCES.map(({ checkpoint, country, countryCode, aliases }) => ({ checkpoint, country, countryCode, aliases }));
 
 export function clean(value) {
-  return String(value || '').toLowerCase()
-    .replace(/[–—-]/g, ' ')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return String(value || '').toLowerCase().replace(/[–—-]/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
 export function findCheckpoint(text) {
@@ -132,13 +116,15 @@ function signalLike(text) {
 }
 
 function messageText(message) {
-  return String(message?.rawText || message?.message || message?.richText || '').replace(/\s+/g, ' ').trim();
+  return String(message?.rawText || message?.message || message?.text || message?.caption || message?.richText || '').replace(/\s+/g, ' ').trim();
 }
 
 function messageTimestampMs(message) {
   if (message?.date instanceof Date) return message.date.getTime();
-  const seconds = Number(message?.date);
-  return Number.isFinite(seconds) ? seconds * 1000 : NaN;
+  const numeric = Number(message?.date);
+  if (Number.isFinite(numeric)) return numeric > 10_000_000_000 ? numeric : numeric * 1000;
+  const parsed = Date.parse(String(message?.date || ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
 }
 
 export function parseTelegramMessage(message, replyMessage, source, nowMs = Date.now()) {
@@ -181,139 +167,112 @@ export function parseTelegramMessage(message, replyMessage, source, nowMs = Date
     channel_url: source.channelUrl || `https://t.me/${source.username}`,
     source_kind: source.kind,
     message_id: id,
-    transport: 'mtproto',
+    transport: 'tgatlas',
     kind: 'human_report'
   };
 }
 
 function safeErrorCode(error) {
-  const value = String(error?.errorMessage || error?.code || error?.name || 'telegram_error').toUpperCase();
-  return value.replace(/[^A-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 72) || 'TELEGRAM_ERROR';
+  const value = String(error?.code || error?.name || error?.message || 'tgatlas_error').toUpperCase();
+  return value.replace(/[^A-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 72) || 'TGATLAS_ERROR';
 }
 
-function credentials() {
-  const apiId = Number(process.env.TELEGRAM_API_ID);
-  const apiHash = String(process.env.TELEGRAM_API_HASH || '').trim();
-  const session = String(process.env.TELEGRAM_SESSION || '').trim();
-  return {
-    apiId,
-    apiHash,
-    session,
-    credentialsConfigured: Number.isSafeInteger(apiId) && apiId > 0 && Boolean(apiHash),
-    sessionConfigured: Boolean(session)
-  };
+function config() {
+  const key = String(process.env.TGATLAS_RAPIDAPI_KEY || '').trim();
+  const host = String(process.env.TGATLAS_RAPIDAPI_HOST || 'telegram155.p.rapidapi.com').trim();
+  return { key, host, configured: Boolean(key) };
 }
 
-function fingerprintFor({ apiId, apiHash, session }) {
-  return crypto.createHash('sha256').update(`${apiId}:${apiHash}:${session}`).digest('hex');
-}
-
-async function disconnectClient(client) {
-  if (!client) return;
-  try { await client.disconnect(); } catch {}
-}
-
-async function withTimeout(promise, timeoutMs, code) {
-  let timer;
+async function apiGet(pathname, params = {}) {
+  const { key, host, configured } = config();
+  if (!configured) throw Object.assign(new Error('TGATLAS_NOT_CONFIGURED'), { code: 'TGATLAS_NOT_CONFIGURED' });
+  if (quotaState.remaining != null && quotaState.remaining < 25) throw Object.assign(new Error('TGATLAS_QUOTA_LOW'), { code: 'TGATLAS_QUOTA_LOW' });
+  const url = new URL(`https://${host}${pathname}`);
+  for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, String(v));
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error(code), { code })), timeoutMs); })
-    ]);
+    const response = await fetch(url, {
+      headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, accept: 'application/json' },
+      cache: 'no-store', signal: ctl.signal
+    });
+    for (const name of ['x-ratelimit-requests-remaining', 'x-ratelimit-rapid-free-plans-hard-limit-remaining', 'x-ratelimit-rapid-free-plans-remaining']) {
+      const value = Number(response.headers.get(name));
+      if (Number.isFinite(value)) { quotaState = { remaining: value, observedAt: new Date().toISOString() }; break; }
+    }
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.error) {
+      const code = body?.code || `HTTP_${response.status}`;
+      throw Object.assign(new Error(code), { code });
+    }
+    return body || {};
   } finally {
     clearTimeout(timer);
   }
 }
 
-function makeClient(session, apiId, apiHash) {
-  return new TelegramClient(new StringSession(session), apiId, apiHash, {
-    connectionRetries: 3,
-    reconnectRetries: 3,
-    requestRetries: 2,
-    retryDelay: 1_000,
-    timeout: 12,
-    autoReconnect: true,
-    floodSleepThreshold: 8,
-    baseLogger: new Logger('none'),
-    deviceModel: 'Border Monitor UA',
-    systemVersion: `Node ${process.versions.node}`,
-    appVersion: '1.0',
-    langCode: 'uk',
-    systemLangCode: 'uk-UA'
-  });
+function sourceByUsername(username) {
+  const key = String(username || '').replace(/^@/, '').toLowerCase();
+  return SOURCES.find(source => source.username.toLowerCase() === key) || null;
 }
 
-async function getAuthorizedClient() {
-  const config = credentials();
-  if (!config.credentialsConfigured) return { client: null, status: 'missing_credentials', ...config };
-  if (!config.sessionConfigured) return { client: null, status: 'not_configured', ...config };
-  const fingerprint = fingerprintFor(config);
-  if (clientState.fingerprint !== fingerprint) {
-    await disconnectClient(clientState.client);
-    clientState = { fingerprint, client: null, connectPromise: null, authorized: false, error: null };
-  }
-  if (clientState.client && clientState.authorized && clientState.client.connected) return { client: clientState.client, status: 'connected', ...config };
-  if (!clientState.connectPromise) {
-    clientState.connectPromise = (async () => {
-      const client = makeClient(config.session, config.apiId, config.apiHash);
-      try {
-        await withTimeout(client.connect(), CONNECTION_TIMEOUT_MS, 'TELEGRAM_CONNECT_TIMEOUT');
-        const authorized = await withTimeout(client.checkAuthorization(), CONNECTION_TIMEOUT_MS, 'TELEGRAM_AUTH_TIMEOUT');
-        if (!authorized) throw Object.assign(new Error('Telegram session is not authorized'), { code: 'SESSION_UNAUTHORIZED' });
-        clientState.client = client;
-        clientState.authorized = true;
-        clientState.error = null;
-        return client;
-      } catch (error) {
-        clientState.authorized = false;
-        clientState.error = safeErrorCode(error);
-        await disconnectClient(client);
-        throw error;
-      } finally {
-        clientState.connectPromise = null;
-      }
-    })();
-  }
-  try {
-    const client = await clientState.connectPromise;
-    return { client, status: 'connected', ...config };
-  } catch (error) {
-    return { client: null, status: 'error', error: safeErrorCode(error), ...config };
-  }
+async function resolvePeer(source) {
+  const cached = peerCache.get(source.username.toLowerCase());
+  if (cached) return cached;
+  const body = await apiGet(`/v1/usernames/${encodeURIComponent(source.username)}`);
+  const candidates = [...(Array.isArray(body?.chats) ? body.chats : []), ...(Array.isArray(body?.users) ? body.users : [])];
+  const wanted = source.username.toLowerCase();
+  const peer = candidates.find(item => String(item?.username || '').toLowerCase() === wanted || (item?.usernames || []).some(u => String(u?.username || '').toLowerCase() === wanted)) || candidates[0];
+  const id = Number(peer?.id);
+  if (!Number.isSafeInteger(id) || id <= 0) throw Object.assign(new Error('TGATLAS_PEER_NOT_FOUND'), { code: 'TGATLAS_PEER_NOT_FOUND' });
+  const value = { id, title: peer?.title || peer?.first_name || source.label };
+  peerCache.set(source.username.toLowerCase(), value);
+  return value;
 }
 
-async function fetchSource(client, source, nowMs) {
+function normalizeMessage(message) {
+  const replyToMsgId = Number(message?.replyToMsgId ?? message?.reply_to_msg_id ?? message?.reply_to?.reply_to_msg_id ?? message?.reply_to?.msg_id ?? 0) || null;
+  return {
+    ...message,
+    id: Number(message?.id),
+    date: message?.date,
+    message: messageText(message),
+    replyToMsgId
+  };
+}
+
+async function fetchSource(source, force = false) {
+  const key = source.username.toLowerCase();
+  const cached = sourceCache.get(key);
+  if (!force && cached && Date.now() - cached.ts < SOURCE_TTL_MS) return cached.result;
   try {
-    const entity = await client.getEntity(source.username);
-    const messages = await client.getMessages(entity, { limit: MESSAGE_LIMIT });
-    const recent = [...messages].filter(message => {
-      const timestampMs = messageTimestampMs(message);
-      return Number.isFinite(timestampMs) && timestampMs <= nowMs + 60_000 && nowMs - timestampMs <= (MAX_AGE_MIN + 5) * 60_000;
-    });
-    const byId = new Map(recent.map(message => [Number(message.id), message]));
-    const missingReplyIds = [...new Set(recent.map(message => Number(message.replyToMsgId)).filter(id => Number.isInteger(id) && id > 0 && !byId.has(id)))].slice(0, 40);
-    if (missingReplyIds.length) {
-      const replies = await client.getMessages(entity, { ids: missingReplyIds });
-      for (const reply of replies) if (reply?.id) byId.set(Number(reply.id), reply);
-    }
-    const items = recent.map(message => parseTelegramMessage(message, byId.get(Number(message.replyToMsgId)), source, nowMs)).filter(Boolean);
-    return {
-      source,
-      items,
-      status: 'connected',
-      messagesScanned: recent.length,
-      newestMessageAt: recent.length ? new Date(messageTimestampMs(recent[0])).toISOString() : null
+    const peer = await resolvePeer(source);
+    const body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });
+    const messages = (Array.isArray(body?.messages) ? body.messages : []).map(normalizeMessage).filter(m => Number.isInteger(m.id) && m.id > 0);
+    const byId = new Map(messages.map(m => [m.id, m]));
+    const nowMs = Date.now();
+    const items = messages.map(message => parseTelegramMessage(message, byId.get(message.replyToMsgId), source, nowMs)).filter(Boolean);
+    const timestamps = messages.map(messageTimestampMs).filter(Number.isFinite);
+    const result = {
+      source, items, status: 'connected', messagesScanned: messages.length,
+      newestMessageAt: timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : null,
+      peerId: peer.id
     };
+    sourceCache.set(key, { ts: Date.now(), result });
+    return result;
   } catch (error) {
-    return { source, items: [], status: 'error', messagesScanned: 0, newestMessageAt: null, error: safeErrorCode(error) };
+    const result = { source, items: [], status: 'error', messagesScanned: 0, newestMessageAt: null, error: safeErrorCode(error) };
+    sourceCache.set(key, { ts: Date.now(), result });
+    return result;
   }
 }
 
-async function fetchInBatches(client, sources, nowMs) {
+async function fetchInBatches(sources, force = false) {
   const output = [];
   for (let index = 0; index < sources.length; index += CONCURRENCY) {
-    const batch = await Promise.all(sources.slice(index, index + CONCURRENCY).map(source => fetchSource(client, source, nowMs)));
+    const batch = await Promise.all(sources.slice(index, index + CONCURRENCY).map(source => fetchSource(source, force)));
     output.push(...batch);
+    if (index + CONCURRENCY < sources.length) await new Promise(resolve => setTimeout(resolve, 250));
   }
   return output;
 }
@@ -333,8 +292,17 @@ export function dedupeAndLimit(items) {
   });
 }
 
-function sourceMeta(result, fallbackStatus) {
+function currentItem(item, nowMs = Date.now()) {
+  const ms = Date.parse(item.updated_at);
+  if (!Number.isFinite(ms)) return null;
+  const age = Math.max(0, Math.round((nowMs - ms) / 60_000));
+  if (age > MAX_AGE_MIN) return null;
+  return { ...item, age_min: age };
+}
+
+function sourceMeta(result, fallbackStatus = 'available') {
   const source = result.source;
+  const freshItems = (result.items || []).map(item => currentItem(item)).filter(Boolean);
   return {
     channel: source.username,
     channelUrl: source.channelUrl || `https://t.me/${source.username}`,
@@ -345,74 +313,68 @@ function sourceMeta(result, fallbackStatus) {
     countryCode: source.countryCode || null,
     aliases: source.aliases || [],
     status: result.status || fallbackStatus,
-    items: result.items?.length || 0,
+    items: freshItems.length,
     messagesScanned: result.messagesScanned || 0,
     newestMessageAt: result.newestMessageAt || null,
+    peerId: result.peerId || null,
     error: result.error || null
   };
 }
 
-async function refresh() {
-  const nowMs = Date.now();
-  const connection = await getAuthorizedClient();
-  if (!connection.client) {
-    const payload = {
-      ok: true,
-      generatedAt: new Date(nowMs).toISOString(),
-      cacheMinutes: TTL_MS / 60_000,
-      maxAgeMinutes: MAX_AGE_MIN,
-      mode: 'mtproto',
-      status: connection.status,
-      credentialsConfigured: connection.credentialsConfigured,
-      sessionConfigured: connection.sessionConfigured,
-      authorized: false,
-      items: [],
-      sources: SOURCES.map(source => sourceMeta({ source, status: connection.status, error: connection.error || null }, connection.status))
-    };
-    cache = { ts: nowMs, payload };
-    console.log('[telegram-mtproto]', JSON.stringify({ status: payload.status, sources: SOURCES.length, connected: 0, items: 0, checkpointChats: CHAT_SOURCES.length }));
-    return payload;
+function buildPayload(results = [], requested = null) {
+  const { configured } = config();
+  const byUser = new Map(results.map(result => [result.source.username.toLowerCase(), result]));
+  for (const source of SOURCES) {
+    const cached = sourceCache.get(source.username.toLowerCase());
+    if (!byUser.has(source.username.toLowerCase()) && cached) byUser.set(source.username.toLowerCase(), cached.result);
   }
-  const results = await fetchInBatches(connection.client, SOURCES, nowMs);
-  const items = dedupeAndLimit(results.flatMap(result => result.items));
-  const connected = results.filter(result => result.status === 'connected').length;
-  const status = connected === SOURCES.length ? 'connected' : connected > 0 ? 'partial' : 'error';
-  const payload = {
+  const allResults = SOURCES.map(source => byUser.get(source.username.toLowerCase()) || { source, status: configured ? 'available' : 'missing_credentials', items: [] });
+  const items = dedupeAndLimit(allResults.flatMap(result => (result.items || []).map(item => currentItem(item)).filter(Boolean)));
+  const connected = allResults.filter(result => result.status === 'connected').length;
+  const errors = allResults.filter(result => result.status === 'error').length;
+  const status = !configured ? 'missing_credentials' : connected === SOURCES.length ? 'connected' : connected > 0 ? 'partial' : errors ? 'error' : 'available';
+  return {
     ok: true,
-    generatedAt: new Date(nowMs).toISOString(),
-    cacheMinutes: TTL_MS / 60_000,
+    generatedAt: new Date().toISOString(),
+    cacheMinutes: SOURCE_TTL_MS / 60_000,
     maxAgeMinutes: MAX_AGE_MIN,
-    mode: 'mtproto',
+    mode: 'tgatlas',
     status,
-    credentialsConfigured: true,
-    sessionConfigured: true,
-    authorized: true,
+    credentialsConfigured: configured,
+    sessionConfigured: false,
+    authorized: configured,
+    requested,
     items,
-    sources: results.map(result => sourceMeta(result, 'error'))
+    sources: allResults.map(result => sourceMeta(result, configured ? 'available' : 'missing_credentials')),
+    quota: quotaState.remaining == null ? null : { remaining: quotaState.remaining, observedAt: quotaState.observedAt }
   };
-  cache = { ts: nowMs, payload };
-  console.log('[telegram-mtproto]', JSON.stringify({ status, sources: SOURCES.length, connected, items: items.length, checkpointChats: CHAT_SOURCES.length }));
-  return payload;
 }
 
-export async function getTelegramSnapshot() {
-  if (cache.payload && Date.now() - cache.ts < TTL_MS) return { ...cache.payload, fromCache: true };
-  if (!refreshPromise) refreshPromise = refresh().finally(() => { refreshPromise = null; });
-  const payload = await refreshPromise;
-  return { ...payload, fromCache: false };
+export async function getTelegramSnapshot(options = {}) {
+  const username = options?.username ? String(options.username).replace(/^@/, '') : null;
+  if (username) {
+    const source = sourceByUsername(username);
+    if (!source) return { ...buildPayload(), ok: false, error: 'unknown_source' };
+    const result = await fetchSource(source, Boolean(options.force));
+    return buildPayload([result], source.username);
+  }
+  if (options?.full) {
+    if (!fullRefreshPromise) fullRefreshPromise = fetchInBatches(SOURCES, true).finally(() => { fullRefreshPromise = null; });
+    const results = await fullRefreshPromise;
+    return buildPayload(results, 'full');
+  }
+  return buildPayload();
 }
 
 export function clearTelegramCache() {
-  cache = { ts: 0, payload: null };
+  sourceCache.clear();
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-  const expected = process.env.TELEGRAM_READER_TOKEN;
-  if (expected) {
-    const auth = String(req.headers?.authorization || '');
-    if (auth !== `Bearer ${expected}`) return res.status(401).json({ ok: false, error: 'unauthorized' });
-  }
-  const payload = await getTelegramSnapshot();
-  return res.status(200).json(payload);
+  const username = req.query?.username ? String(req.query.username) : null;
+  const full = req.query?.full === '1';
+  if (full && process.env.BORDER_STARTUP_DIAG !== '1') return res.status(403).json({ ok: false, error: 'full_probe_disabled' });
+  const payload = await getTelegramSnapshot({ username, full, force: req.query?.refresh === '1' });
+  return res.status(payload.ok === false ? 404 : 200).json(payload);
 }
