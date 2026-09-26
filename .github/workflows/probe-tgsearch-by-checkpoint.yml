@@ -1,0 +1,48 @@
+name: Search missing Telegram peers by checkpoint title
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-tgsearch-by-checkpoint.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Search public catalog by checkpoint
+        shell: python {0}
+        run: |
+          import html,re,time,urllib.parse,urllib.request
+          queries=[
+            ('nyzhankovychi','Нижанковичі'),('maluibereznui','Малий Березний'),('MaliSelmentsi','Малі Селменці'),
+            ('parubne','Порубне'),('solotkino','Солотвино'),('diakove','Дякове'),('diakivchi','Дяківці'),('krasnoyilsk','Красноїльськ'),
+            ('bilacerkvasigetumarmatiei','Біла Церква Сігету'),('lugankabereg','Лужанка'),('chopzahon','Чоп Захонь'),
+            ('viloktisabech','Вилок Тісабеч'),('dzvinkovelonya','Дзвінкове Лонья'),('kosunopunkt','Косино Барабаш'),
+            ('Mohylivcheckpoint','Могилів Подільський Отач'),('palankaudobne','Паланка Удобне'),('Rossoshany','Россошани Бричани'),
+            ('Mamalyhacheckpoint','Мамалига Крива'),('sokiryany','Сокиряни Окниця'),('Bronnitsacheckpoint','Бронниця Унгурь')]
+          C=218_248_855
+          op=urllib.request.build_opener(); op.addheaders=[('User-Agent','Mozilla/5.0')]
+          card_re=re.compile(r'<div class="channel-card"><div class="channel-card__wrapper".*?</div></div></div>',re.I|re.S)
+          for expected,q in queries:
+            print(f'===== EXPECT {expected} QUERY {q} =====')
+            url='https://tgsearch.org/search?'+urllib.parse.urlencode({'query':q})
+            try:
+              body=op.open(url,timeout=30).read().decode('utf-8','replace')
+            except Exception as e:
+              print('ERROR',type(e).__name__); continue
+            cards=card_re.findall(body)
+            if not cards: cards=re.findall(r'<div class="channel-card">.*?(?=<div class="channel-card">|<ul class="channel-navigation">)',body,re.I|re.S)
+            n=0
+            for card in cards:
+              im=re.search(r'href="/channel/(\d+)"[^>]*>(.*?)</a>',card,re.I|re.S)
+              um=re.search(r'<li>@([^<]+)</li>',card,re.I)
+              if not im: continue
+              internal=int(im.group(1)); num=internal-C
+              peer=num//11 if num>0 and num%11==0 else None
+              title=re.sub('<[^>]+>',' ',html.unescape(im.group(2))); title=' '.join(title.split())
+              username=html.unescape(um.group(1)) if um else ''
+              print(f'RESULT peer={peer} user=@{username} title={title}')
+              n+=1
+              if n>=8: break
+            if n==0: print('NO_RESULTS')
+            time.sleep(.25)
