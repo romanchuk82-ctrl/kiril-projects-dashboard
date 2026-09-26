@@ -1,0 +1,22 @@
+name: Patch tgAtlas quota telemetry
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/patch-tgatlas-quota.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - run: python scripts/patch_tgatlas_quota.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/telegram.js
+          git commit -m "Expose sanitized tgAtlas quota telemetry"
+          git push origin HEAD:border-monitor
