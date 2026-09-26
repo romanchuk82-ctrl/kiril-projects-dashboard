@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import aggregateHandler from './api/aggregate.js';
+import trafficHandler from './api/traffic.js';
 import statusHandler from './api/status.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -59,6 +60,7 @@ http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok: true, service: 'border-monitor-ua' }));
     }
     if (url.pathname === '/api/aggregate') return runApi(aggregateHandler, req, res, url);
+    if (url.pathname === '/api/traffic') return runApi(trafficHandler, req, res, url);
     if (url.pathname === '/api/status') return runApi(statusHandler, req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') return serveStatic(res, 'index.html');
     if (url.pathname === '/app.js') return serveStatic(res, 'app.js');
