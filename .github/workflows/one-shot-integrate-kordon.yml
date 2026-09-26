@@ -1,5 +1,6 @@
 name: One-shot integrate Kordon DPSU queues
 
+# retry after queue-card parser fix
 on:
   push:
     branches: [border-monitor]
