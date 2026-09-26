@@ -1,0 +1,28 @@
+name: Probe current Poland Telegram
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-poland-telegram-current.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe Polish chats and aggregates
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          chats=(Krakivets shegunimeduka rawahrebenne ustylug ugryniv hryshiv yagodyn smilnutsa nyzhankovychi)
+          for chat in "${chats[@]}"; do
+            curl -fsS --max-time 70 "$base/snapshot?username=$chat&refresh=1" -o "/tmp/$chat.json"
+            echo "=== $chat ==="
+            jq -c --arg c "$chat" '{source:(.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|{status,messagesScanned,newestMessageAt,items,error}),items:[.items[]|select((.source_channel|ascii_downcase)==($c|ascii_downcase))|{checkpoint,direction,wait_min,queue_cars,age_min,note,message_id}]}' "/tmp/$chat.json"
+            sleep 0.4
+          done
+          for dir in UA_EU EU_UA; do
+            curl -fsS --max-time 90 "$base/api/aggregate?direction=$dir" -o "/tmp/$dir.json"
+            echo "=== AGG $dir PL ==="
+            jq -c '{rows:[.crossings[]|select(.countryCode=="PL")|{name,waitMin,baseWaitMin,timeReliability,timeReliable,humanReports,humanSignal,telegramChat,sources:[.sources[]|select(.source=="telegram")|{value,queueCars,ageMin,note,sourceChannel,directionBasis}]}]}' "/tmp/$dir.json"
+          done
