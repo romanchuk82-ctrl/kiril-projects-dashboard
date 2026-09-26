@@ -1,0 +1,146 @@
+name: One-shot integrate Kordon DPSU queues
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - .github/workflows/one-shot-integrate-kordon.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Wire Kordon into aggregation and UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('api/aggregate.js')
+          s = p.read_text()
+          imp = "import {fetchNakordoniWeb} from './nakordoni-web.js';"
+          if "from './kordon-live.js'" not in s:
+              if imp not in s: raise SystemExit('aggregate import marker missing')
+              s = s.replace(imp, imp + "\nimport {fetchKordonLive} from './kordon-live.js';", 1)
+
+          marker = 'async function supplementNakordoniWeb(rows,direction){'
+          helper = r'''function mergeKordon(crossings,kordon,direction){
+  const out=Array.isArray(crossings)?crossings.map(x=>({...x,sources:[...(x.sources||[])]})):[];
+  if(direction!=='UA_EU'||!Array.isArray(kordon?.items))return out;
+  for(const item of kordon.items){
+    const q=Number(item?.queueCars);
+    if(!Number.isFinite(q)||q<0||item?.stale)continue;
+    let f=out.find(x=>rowMatches(x,item.name,'PL',[]));
+    if(!f){
+      f={id:`kordon-${keyName(item.name)}-${direction}`,ppid:null,name:item.name,country:'Польща',countryCode:'PL',direction,queueCars:null,waitMin:null,waitStatus:null,ageMin:item.ageMin??null,updatedAt:item.updatedAt||null,trend:'unknown',trendPercent:null,stale:false,confidence:'medium',sourceUrl:item.sourceUrl||'https://kordon.info/',sources:[]};
+      out.push(f)
+    }
+    const wasStale=Boolean(f.stale);
+    f.sources.push({source:'kordon_info',label:'Kordon.info · дані ДПСУ',queueCars:Math.round(q),updatedAt:item.updatedAt||null,ageMin:item.ageMin??null,sourceUrl:item.sourceUrl||'https://kordon.info/',note:`${Math.round(q)} авто · за даними ДПСУ через Kordon.info`,evidence:item.evidence||null});
+    f.queueCars=Math.round(q);
+    f.queueSource='kordon_info';
+    f.queueAgeMin=item.ageMin??null;
+    if(wasStale&&f.waitMin!=null){f.waitMin=null;f.baseWaitMin=null}
+    if(item.ageMin!=null&&(f.ageMin==null||Number(item.ageMin)<Number(f.ageMin)))f.ageMin=Number(item.ageMin);
+    if(item.updatedAt)f.updatedAt=item.updatedAt;
+    f.stale=false;
+    f.confidence=f.confidence==='high'?'high':'medium';
+    f.camera=f.camera||cameraFor(f)
+  }
+  return out
+}
+function kordonDetails(kordon){return{count:Array.isArray(kordon?.items)?kordon.items.length:0,ageMin:kordon?.ageMin??null,upstreamClock:kordon?.upstreamClock??null,attribution:kordon?.attribution||null,error:kordon?.error||null}}
+'''
+          if 'function mergeKordon(' not in s:
+              if marker not in s: raise SystemExit('aggregate supplement marker missing')
+              s = s.replace(marker, helper + marker, 1)
+
+          start = s.find('export default async function handler(req,res){')
+          if start < 0: raise SystemExit('handler marker missing')
+          handler = r'''export default async function handler(req,res){
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'method_not_allowed'});
+  const direction=req.query?.direction==='EU_UA'?'EU_UA':'UA_EU';
+  const regional=await fetchRegionalUpstream(direction);
+  if(regional){
+    const [tg,kordon]=await Promise.all([getTelegram(),fetchKordonLive(direction)]);
+    let base=mergeKordon(Array.isArray(regional.crossings)?regional.crossings:[],kordon,direction);
+    const rows=mergeTelegram(base,tg.items,direction,tg.sources);
+    return res.status(200).json({...regional,generatedAt:new Date().toISOString(),crossings:sort(rows),sourceStatus:{...(regional.sourceStatus||{}),kordon:kordon.status,kordonDetails:kordonDetails(kordon),telegram:tg.status,telegramDetails:tg.meta},viaRegionalUpstream:true,telegramLocal:true})
+  }
+  const generatedAt=new Date().toISOString();
+  const [tg,official,kordon]=await Promise.all([getTelegram(),getOfficial(direction),fetchKordonLive(direction)]);
+  const apiKey=process.env.NKD_API_KEY||s(req.headers?.['x-nkd-key']);
+  if(!apiKey){
+    const nw=await supplementNakordoniWeb([],direction);
+    let rows=mergeKordon(nw.rows,kordon,direction);
+    rows=mergeOfficial(rows,official.items,direction);
+    rows=mergeTelegram(rows,tg.items,direction,tg.sources);
+    return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})
+  }
+  const ck=`${apiKey.slice(-6)}:${direction}`;
+  let nkd=cache.get(ck),fromCache=true;
+  if(!nkd||Date.now()-nkd.ts>TTL){nkd={ts:Date.now(),value:await getNkd(apiKey,direction)};cache.set(ck,nkd);fromCache=false}
+  const x=nkd.value;
+  const nw=await supplementNakordoniWeb(x.crossings,direction);
+  let rows=mergeKordon(nw.rows,kordon,direction);
+  rows=mergeOfficial(rows,official.items,direction);
+  rows=mergeTelegram(rows,tg.items,direction,tg.sources);
+  return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nw.added?'api_plus_web':'api'):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})
+}
+'''
+          s = s[:start] + handler
+          p.write_text(s)
+
+          p = Path('server.source.js')
+          s = p.read_text()
+          old = "nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram"
+          new = "nakordoni:payload?.sourceStatus?.nakordoni,kordon:payload?.sourceStatus?.kordon,kordonCount:payload?.sourceStatus?.kordonDetails?.count,telegram:payload?.sourceStatus?.telegram"
+          if old not in s: raise SystemExit('server diagnostic marker missing')
+          p.write_text(s.replace(old,new,1))
+
+          p = Path('public/app.js')
+          s = p.read_text()
+          old = "const nk=data.sourceStatus?.nakordoni,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()"
+          new = "const nk=data.sourceStatus?.nakordoni,kd=data.sourceStatus?.kordon,kdd=data.sourceStatus?.kordonDetails,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;const kt=kd==='connected'?`✓${kdd?.count?` ${kdd.count}`:''}`:kd==='not_applicable'?'—':kd==='stale_cache'?'кеш':kd||'—';$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Kordon/ДПСУ: ${kt} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()"
+          if old not in s: raise SystemExit('app source status marker missing')
+          p.write_text(s.replace(old,new,1))
+          PY
+          node --check api/kordon-live.js
+          node --check api/aggregate.js
+          node --check server.source.js
+          node --check public/app.js
+      - name: Verify live Kordon parser
+        run: |
+          node --input-type=module - <<'NODE'
+          import {fetchKordonLive} from './api/kordon-live.js';
+          const x=await fetchKordonLive('UA_EU');
+          console.log(JSON.stringify({status:x.status,count:x.items?.length,ageMin:x.ageMin,items:(x.items||[]).map(i=>({name:i.name,queueCars:i.queueCars,evidence:i.evidence}))},null,2));
+          if(x.status!=='connected'||!x.items?.some(i=>i.name==='Грушів - Будоміж'&&i.queueCars===0))process.exit(1);
+          NODE
+      - name: Build production bundle
+        run: |
+          npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node20 --minify-whitespace --outfile=server.bundle.cjs
+          cat > server.js <<'EOF'
+          import './server.bundle.cjs';
+          EOF
+          node --check server.js
+          node --check server.bundle.cjs
+      - name: Commit integration and remove one-shot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-integrate-kordon.yml
+          git add api/aggregate.js api/kordon-live.js server.source.js server.bundle.cjs server.js public/app.js
+          git commit -m "Use Kordon DPSU queues as Poland fallback"
+          git push origin HEAD:border-monitor
