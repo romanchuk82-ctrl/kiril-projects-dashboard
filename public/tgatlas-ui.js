@@ -73,18 +73,18 @@
   }
 
   async function autoConfirmBest() {
-    const dir = state.direction;
-    if (autoDone.has(dir) || autoRunning.has(dir)) return;
-    autoRunning.add(dir);
+    const key = `${state.direction}:${state.country}`;
+    if (autoDone.has(key) || autoRunning.has(key)) return;
+    autoRunning.add(key);
     try {
-      const candidates = state.rows.filter(r => r.waitMin != null && !r.stale && r.telegramChat?.channel && r.timeReliable !== true).sort((a,b)=>a.waitMin-b.waitMin).slice(0,3);
-      for (const row of candidates) {
-        const ok = await loadTelegram(row.telegramChat.channel, null, true);
-        if (ok) break;
-      }
+      const visible = (typeof currentRows === 'function' ? currentRows() : state.rows).filter(r => !r.stale && r.telegramChat?.channel && r.timeReliable !== true);
+      const timed = visible.filter(r => r.waitMin != null).sort((a,b)=>a.waitMin-b.waitMin);
+      const noTime = visible.filter(r => r.waitMin == null);
+      const candidates = [...timed, ...noTime].slice(0, 4);
+      for (const row of candidates) await loadTelegram(row.telegramChat.channel, null, true);
     } finally {
-      autoRunning.delete(dir);
-      autoDone.add(dir);
+      autoRunning.delete(key);
+      autoDone.add(key);
     }
   }
 

@@ -23,35 +23,49 @@ function mergeOfficial(crossings,items,direction){const out=crossings.map(x=>({.
 function rowMatches(x,name,countryCode,aliases=[]){if(countryCode&&x.countryCode&&x.countryCode!==countryCode)return false;const a=keyName(x.name),b=keyName(name);if(a&&b&&(a.includes(b)||b.includes(a)))return true;const rowText=keyName(`${x.name} ${(x.sources||[]).map(z=>z.note||'').join(' ')}`);return aliases.some(v=>{const k=keyName(v);return k&&rowText.includes(k)})}
 function chatMeta(src){return{label:src.label||src.checkpoint||src.channel,channel:src.channel||null,url:src.channelUrl||null,status:src.status||'unknown',freshReports:src.items??0,messagesScanned:src.messagesScanned??0,newestMessageAt:src.newestMessageAt||null}}
 function chatPlaceholder(chat,direction){return{id:`tg-chat-${chat.channel}-${direction}`,ppid:null,name:chat.checkpoint,country:chat.country||COUNTRY_NAMES[chat.countryCode]||'',countryCode:chat.countryCode||'',direction,queueCars:null,waitMin:null,waitStatus:null,ageMin:null,updatedAt:null,trend:'unknown',trendPercent:null,stale:false,confidence:'low',sourceUrl:chat.channelUrl||null,sources:[],humanReports:0,humanSignal:null,telegramChat:chatMeta(chat)}}
-export function mergeTelegram(crossings,items,direction,chatSources=[]){const out=crossings.map(x=>({...x,sources:[...(x.sources||[])],humanReports:x.humanReports||0,humanSignal:x.humanSignal||null}));for(const chat of Array.isArray(chatSources)?chatSources:[]){if(chat.kind!=='checkpoint_chat'||!chat.checkpoint)continue;const exactName=keyName(chat.checkpoint);let f=out.find(x=>(!chat.countryCode||!x.countryCode||x.countryCode===chat.countryCode)&&keyName(x.name)===exactName);if(!f)f=out.find(x=>!x.telegramChat&&rowMatches(x,chat.checkpoint,chat.countryCode,chat.aliases||[]));if(!f){f=chatPlaceholder(chat,direction);out.push(f)}else f.telegramChat=chatMeta(chat)}for(const raw of Array.isArray(items)?items:[]){const name=s(pick(raw,['checkpoint','name','crossing']));if(!name)continue;const dir=String(raw.direction||'').toUpperCase().startsWith('EU')?'EU_UA':'UA_EU';if(dir!==direction)continue;const countryCode=s(raw.country_code||raw.countryCode)||'';let f=out.find(x=>rowMatches(x,name,countryCode,[]));const rawWait=pick(raw,['wait_min','waitMinutes','waiting_time_min']);const waitMin=rawWait==null?null:n(rawWait);const rawAge=pick(raw,['age_min','ageMinutes']);const ageMin=rawAge==null?null:n(rawAge);const rawQueue=pick(raw,['queue_cars','cars','queue']);const queueCars=rawQueue==null?null:n(rawQueue);const updatedAt=s(pick(raw,['updated_at','timestamp','as_of']));const note=s(pick(raw,['note','text','summary']));const sourceUrl=s(raw.source_url||raw.sourceUrl);const sourceLabel=s(raw.source_label||raw.sourceLabel)||'Telegram';const channelUrl=s(raw.channel_url||raw.channelUrl);const sourceChannel=s(raw.source_channel||raw.sourceChannel);const replyContext=s(raw.reply_context||raw.replyContext);const directionBasis=s(raw.direction_basis||raw.directionBasis);if(!f){f={id:`tg-${keyName(name)}-${dir}`,name,country:s(raw.country)||COUNTRY_NAMES[countryCode]||'',countryCode,direction:dir,queueCars:null,waitMin:null,ageMin:null,updatedAt:null,trend:'unknown',trendPercent:null,stale:false,confidence:'low',sourceUrl:null,sources:[],humanReports:0,humanSignal:'reported'};out.push(f)}f.sources.push({source:'telegram',label:sourceLabel,value:waitMin,queueCars,updatedAt,ageMin,note:note||(queueCars!=null?`${queueCars} авто`:null),replyContext,directionBasis,sourceUrl,channelUrl,sourceChannel});if(channelUrl)f.telegramChat={label:sourceLabel,channel:sourceChannel,url:channelUrl,status:'connected',freshReports:(f.telegramChat?.freshReports||0)+1};f.humanReports=(f.humanReports||0)+1;f.humanSignal=f.humanReports>=2?'corroborated':'reported'}return out.map(x=>applyTelegramTimeTrust({...x,camera:x.camera||cameraFor(x)}))}
+export function mergeTelegram(crossings,items,direction,chatSources=[]){const out=crossings.map(x=>({...x,sources:[...(x.sources||[])],humanReports:x.humanReports||0,humanSignal:x.humanSignal||null}));for(const chat of Array.isArray(chatSources)?chatSources:[]){if(chat.kind!=='checkpoint_chat'||!chat.checkpoint)continue;const exactName=keyName(chat.checkpoint);let f=out.find(x=>(!chat.countryCode||!x.countryCode||x.countryCode===chat.countryCode)&&keyName(x.name)===exactName);if(!f)f=out.find(x=>!x.telegramChat&&rowMatches(x,chat.checkpoint,chat.countryCode,chat.aliases||[]));if(!f){f=chatPlaceholder(chat,direction);out.push(f)}else f.telegramChat=chatMeta(chat)}for(const raw of Array.isArray(items)?items:[]){const name=s(pick(raw,['checkpoint','name','crossing']));if(!name)continue;const dir=String(raw.direction||'').toUpperCase().startsWith('EU')?'EU_UA':'UA_EU';if(dir!==direction)continue;const countryCode=s(raw.country_code||raw.countryCode)||'';const sourceChannel=s(raw.source_channel||raw.sourceChannel);let f=out.find(x=>sourceChannel&&String(x.telegramChat?.channel||'').toLowerCase()===sourceChannel.toLowerCase());if(!f)f=out.find(x=>rowMatches(x,name,countryCode,[]));const rawWait=pick(raw,['wait_min','waitMinutes','waiting_time_min']);const waitMin=rawWait==null?null:n(rawWait);const rawAge=pick(raw,['age_min','ageMinutes']);const ageMin=rawAge==null?null:n(rawAge);const rawQueue=pick(raw,['queue_cars','cars','queue']);const queueCars=rawQueue==null?null:n(rawQueue);const updatedAt=s(pick(raw,['updated_at','timestamp','as_of']));const note=s(pick(raw,['note','text','summary']));const sourceUrl=s(raw.source_url||raw.sourceUrl);const sourceLabel=s(raw.source_label||raw.sourceLabel)||'Telegram';const channelUrl=s(raw.channel_url||raw.channelUrl);const replyContext=s(raw.reply_context||raw.replyContext);const directionBasis=s(raw.direction_basis||raw.directionBasis);if(!f){f={id:`tg-${keyName(name)}-${dir}`,name,country:s(raw.country)||COUNTRY_NAMES[countryCode]||'',countryCode,direction:dir,queueCars:null,waitMin:null,ageMin:null,updatedAt:null,trend:'unknown',trendPercent:null,stale:false,confidence:'low',sourceUrl:null,sources:[],humanReports:0,humanSignal:'reported'};out.push(f)}f.sources.push({source:'telegram',label:sourceLabel,value:waitMin,queueCars,updatedAt,ageMin,note:note||(queueCars!=null?`${queueCars} авто`:null),replyContext,directionBasis,sourceUrl,channelUrl,sourceChannel});if(channelUrl)f.telegramChat={label:sourceLabel,channel:sourceChannel,url:channelUrl,status:'connected',freshReports:(f.telegramChat?.freshReports||0)+1};f.humanReports=(f.humanReports||0)+1;f.humanSignal=f.humanReports>=2?'corroborated':'reported'}return out.map(x=>applyTelegramTimeTrust({...x,camera:x.camera||cameraFor(x)}))}
+const TG_TRUST_MAX_AGE=180;
+function telegramQueueCount(src){
+  const direct=src?.queueCars!=null?Number(src.queueCars):NaN;
+  if(Number.isFinite(direct)&&direct>=0)return Math.round(direct);
+  const raw=String(src?.note||'');
+  let m=raw.match(/(\d{1,4})\s*[-–—]\s*(\d{1,4})\s*(?:авто|машин[\p{L}]*)/iu);
+  if(m)return Math.max(Number(m[1]),Number(m[2]));
+  m=raw.match(/(?:^|[^\d])(\d{1,4})\s*(?:авто|машин[\p{L}]*)(?=$|[^\p{L}\p{N}])/iu);
+  return m?Number(m[1]):null
+}
 function telegramQualitativeSignal(src){
-  const q=src?.queueCars!=null&&Number.isFinite(Number(src.queueCars))?Number(src.queueCars):null;
-  const text=keyName(src?.note||'');
+  const q=telegramQueueCount(src);
+  if(q!=null){if(q<=3)return'low';if(q>=10)return'high';return'mid'}
+  const raw=String(src?.note||'');
+  if(/[?？]/.test(raw)||/(?:^|\s)(яка|який|які|скільки|підкажіть|підкажи|скажіть|скажи|хто знає)(?:\s|$)/iu.test(raw))return null;
+  const text=keyName(raw);
   const low=/(без черги|нема черги|немає черги|черги нема|черги немає|пусто|вільно|вільний|одразу|відразу|сразу|без очікування)/.test(text);
   const high=/(велика черга|довга черга|черга велика|черга довга|стоимо|стоїмо|чекаємо|ждемо|затор)/.test(text);
-  if(low&&!high)return'low';
-  if(high&&!low)return'high';
-  if(q!=null){if(q<=3)return'low';if(q>=10)return'high';return'mid'}
-  return null
+  if(low&&!high)return'low';if(high&&!low)return'high';return null
 }
 export function applyTelegramTimeTrust(row){
   const out={...row,sources:[...(row.sources||[])]};
   const baseRaw=out.baseWaitMin!=null?Number(out.baseWaitMin):(out.waitMin!=null?Number(out.waitMin):null);
   const base=Number.isFinite(baseRaw)?Math.max(0,Math.round(baseRaw)):null;
-  const fresh=out.sources.filter(src=>src?.source==='telegram'&&src.ageMin!=null&&Number(src.ageMin)>=0&&Number(src.ageMin)<=90);
+  const fresh=out.sources.filter(src=>src?.source==='telegram'&&src.ageMin!=null&&Number(src.ageMin)>=0&&Number(src.ageMin)<=TG_TRUST_MAX_AGE);
   const numeric=fresh.filter(src=>src.value!=null&&Number.isFinite(Number(src.value)));
   const vals=numeric.map(src=>Math.max(0,Math.round(Number(src.value)))).sort((a,b)=>a-b);
   const median=vals.length?(vals.length%2?vals[(vals.length-1)/2]:Math.round((vals[vals.length/2-1]+vals[vals.length/2])/2)):null;
-  const signals=fresh.map(telegramQualitativeSignal).filter(Boolean);
+  const signalRows=fresh.map(src=>({src,signal:telegramQualitativeSignal(src)})).filter(x=>x.signal);
+  const signals=signalRows.map(x=>x.signal);
   const counts={low:signals.filter(x=>x==='low').length,mid:signals.filter(x=>x==='mid').length,high:signals.filter(x=>x==='high').length};
+  const queueRows=fresh.map(src=>({src,q:telegramQueueCount(src)})).filter(x=>x.q!=null).sort((a,b)=>Number(a.src.ageMin)-Number(b.src.ageMin));
   out.baseWaitMin=base;
   out.telegramWaitMin=median;
   out.telegramTimeReports=vals.length;
   out.telegramFreshReports=fresh.length;
   out.telegramQualitative=counts;
+  out.telegramQueueCars=queueRows.length?queueRows[0].q:null;
+  out.telegramQueueAgeMin=queueRows.length?Number(queueRows[0].src.ageMin):null;
   out.telegramTimeAgeMin=numeric.length?Math.min(...numeric.map(src=>Number(src.ageMin))):null;
   out.timeDeltaMin=base!=null&&median!=null?Math.abs(base-median):null;
-  if(base==null){out.timeReliable=false;out.timeReliability='no_time';out.timeReliabilityReason='Немає незалежної базової оцінки часу';return out}
+  if(base==null){out.timeReliable=false;out.timeReliability='no_time';out.timeReliabilityReason=fresh.length?'Telegram має свіжі дані, але немає незалежної базової оцінки часу':'Немає незалежної базової оцінки часу';return out}
   if(vals.length){
     const spread=vals.length>1?vals[vals.length-1]-vals[0]:0;
     const spreadLimit=Math.max(30,Math.round((median||0)*0.5));
@@ -60,24 +74,15 @@ export function applyTelegramTimeTrust(row){
     if(Math.abs(base-median)>tolerance){out.waitMin=base;out.timeReliable=false;out.timeReliability='conflict';out.timeReliabilityReason=`Telegram відрізняється від базового часу на ${Math.abs(base-median)} хв`;out.confidence='low';return out}
     const weight=vals.length>=2?0.45:0.35;
     out.waitMin=Math.max(0,Math.round(base*(1-weight)+median*weight));
-    out.timeReliable=true;
-    out.timeReliability='confirmed';
-    out.timeReliabilityReason=`Telegram прямо підтвердив час (${vals.length} числових повідомлень)`;
-    out.confidence='high';
-    return out
+    out.timeReliable=true;out.timeReliability='confirmed';out.timeReliabilityReason=`Telegram прямо підтвердив час (${vals.length})`;out.confidence='high';return out
   }
   let support=0,contradict=0;
   if(base<=20){support=counts.low;contradict=counts.high}
   else if(base>=60){support=counts.high;contradict=counts.low}
   else {support=counts.mid;contradict=(base>=45?counts.low:0)+(base<=35?counts.high:0)}
   if(contradict>0&&support===0){out.waitMin=base;out.timeReliable=false;out.timeReliability='conflict';out.timeReliabilityReason='Telegram описує іншу ситуацію з чергою, ніж базова оцінка';out.confidence='low';return out}
-  if(support>=2){out.waitMin=base;out.timeReliable=true;out.timeReliability='supported';out.timeReliabilityReason=`Ситуацію підтверджують ${support} свіжі повідомлення Telegram`;out.confidence='medium';return out}
-  out.waitMin=base;
-  out.timeReliable=false;
-  out.timeReliability='unconfirmed';
-  out.timeReliabilityReason=fresh.length?'Telegram є, але недостатньо даних для підтвердження часу':'Немає свіжого підтвердження з Telegram за останні 90 хв';
-  out.confidence='low';
-  return out
+  if(support>=1){out.waitMin=base;out.timeReliable=true;out.timeReliability='supported';out.timeReliabilityReason=`Ситуацію підтверджує ${support} пряме повідомлення Telegram`;out.confidence='medium';return out}
+  out.waitMin=base;out.timeReliable=false;out.timeReliability='unconfirmed';out.timeReliabilityReason=fresh.length?'Telegram є, але немає прямого підтвердження ситуації':'Немає свіжого підтвердження з Telegram за останні 3 години';out.confidence='low';return out
 }
 function sort(rows){return[...rows].sort((a,b)=>(a.timeReliable===true?0:1)-(b.timeReliable===true?0:1)||(a.stale?1:0)-(b.stale?1:0)||(a.waitMin??999999)-(b.waitMin??999999)||(a.ageMin??9999)-(b.ageMin??9999))}
 async function fetchRegionalUpstream(direction){const base=process.env.UPSTREAM_AGGREGATOR_URL?.replace(/\/$/,'');if(!base)return null;try{const r=await fetch(`${base}/api/aggregate?direction=${direction}`,{headers:{Accept:'application/json'},cache:'no-store'});const body=await r.json().catch(()=>null);if(!r.ok||!body?.ok)return null;return body}catch{return null}}
