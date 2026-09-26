@@ -16,12 +16,11 @@ jobs:
           base='https://border-monitor-ua.onrender.com'
           curl -fsS --max-time 30 "$base/health" | jq -e '.ok==true' >/dev/null
           curl -fsS --max-time 30 "$base/app.js" -o /tmp/app.js
-          curl -fsS --max-time 30 "$base/tgatlas-ui.js" -o /tmp/tg-ui.js
           grep -q 'function displayTimeMin' /tmp/app.js
           grep -q 'Найшвидше за наявними даними' /tmp/app.js
           grep -q 'Найменша черга за Telegram' /tmp/app.js
-          grep -q "state.country === 'ALL'" /tmp/tg-ui.js
-          grep -q 'i += 3' /tmp/tg-ui.js
+          grep -q "state.country === 'ALL'" /tmp/app.js
+          grep -q 'i += 3' /tmp/app.js
 
           chats=(Krakivets shegunimeduka rawahrebenne ustylug ugryniv hryshiv yagodyn smilnutsa nyzhankovychi)
           for chat in "${chats[@]}"; do
