@@ -1,0 +1,47 @@
+name: Probe Kordon live queue source
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - .github/workflows/probe-kordon-live.yml
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Fetch Kordon homepage
+        run: |
+          set -euo pipefail
+          curl -LfsS --max-time 30 -A 'Mozilla/5.0' 'https://kordon.info/?_bm='$(date +%s) -o /tmp/kordon.html
+          echo "BYTES $(wc -c </tmp/kordon.html)"
+          python - <<'PY'
+          from pathlib import Path
+          import re, html
+          s=Path('/tmp/kordon.html').read_text(errors='ignore')
+          text=html.unescape(re.sub(r'<[^>]+>',' ',s))
+          text=re.sub(r'\s+',' ',text)
+          for name in ['Шегині','Краківець','Краковець','Ягодин','Грушів','Устилуг','Рава-Руська','Угринів','Смільниця','Нижанковичі']:
+              i=text.lower().find(name.lower())
+              if i>=0: print(name, '=>', text[max(0,i-120):i+260])
+          print('API_URLS')
+          for u in sorted(set(re.findall(r'https?://[^"\' <>]+',s))):
+              if any(k in u.lower() for k in ['api','queue','border','ajax','wp-json']): print(u[:400])
+          print('WP_JSON_HINTS')
+          for m in re.findall(r'[^"\']{0,100}(?:wp-json|admin-ajax|queue|cherh|border)[^"\']{0,180}',s,re.I):
+              print(re.sub(r'\s+',' ',m)[:300])
+          PY
+      - name: Remove probe workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/probe-kordon-live.yml
+          git commit -m "Remove Kordon probe workflow"
+          git push origin HEAD:border-monitor
