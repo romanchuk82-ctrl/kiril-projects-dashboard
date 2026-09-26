@@ -1,0 +1,47 @@
+name: Apply Telegram Poland visibility fix
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-telegram-polish-visibility-fix.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply fix
+        run: python scripts/fix_telegram_poland_visibility.py
+      - name: Validate syntax and parser
+        run: |
+          node --check api/aggregate.js
+          node --check api/telegram.js
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+          node --input-type=module <<'NODE'
+          import {parseWaitMin} from './api/telegram.js';
+          const x=parseWaitMin('До Польщі по зеленому легковим авто підʼїхали в 16:30 до укр кордону, в 21:15 уже все пройшли.');
+          if(x!==285) throw new Error(`elapsed parser failed: ${x}`);
+          console.log('elapsed=',x);
+          NODE
+          node --input-type=module <<'NODE'
+          import {mergeTelegram} from './api/aggregate.js';
+          const base=[{name:'Грушів - Будомєж',countryCode:'PL',country:'Польща',direction:'EU_UA',waitMin:0,sources:[]}];
+          const chats=[{kind:'checkpoint_chat',checkpoint:'Грушів - Будоміж',countryCode:'PL',country:'Польща',channel:'hryshiv',channelUrl:'https://t.me/hryshiv',aliases:['грушів','будоміж','будомєж'],status:'connected',items:1}];
+          const items=[{checkpoint:'Грушів - Будоміж',country_code:'PL',direction:'EU_UA',queue_cars:1,wait_min:null,age_min:10,note:'1 авто в Україну',source_channel:'hryshiv',channel_url:'https://t.me/hryshiv',source_label:'Грушів - Будоміж'}];
+          const out=mergeTelegram(base,items,'EU_UA',chats);
+          if(out.length!==1) throw new Error(`duplicate hryshiv rows: ${out.length}`);
+          if(out[0].humanReports!==1) throw new Error('Telegram item not attached');
+          if(out[0].timeReliable!==true || out[0].timeReliability!=='supported') throw new Error(`trust failed ${out[0].timeReliability}`);
+          console.log(JSON.stringify(out[0]));
+          NODE
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/aggregate.js api/telegram.js public/app.js public/tgatlas-ui.js
+          git commit -m "Fix Poland Telegram visibility and confirmation"
+          git push origin HEAD:border-monitor
