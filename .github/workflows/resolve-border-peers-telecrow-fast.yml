@@ -1,0 +1,36 @@
+name: Resolve Border Monitor peers fast
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/resolve-border-peers-telecrow-fast.yml']
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve sources concurrently
+        shell: python
+        run: |
+          import concurrent.futures,json,time,urllib.parse,urllib.request,urllib.error
+          users=['Krakivets','shegunimeduka','rawahrebenne','ustylug','ugryniv','hryshiv','yagodyn','smilnutsa','nyzhankovychi','maluibereznui','uzhorodqueue','MaliSelmentsi','parubne','solotkino','diakove','diakivchi','krasnoyilsk','bilacerkvasigetumarmatiei','lugankabereg','chopzahon','viloktisabech','dzvinkovelonya','kosunopunkt','Mohylivcheckpoint','palankaudobne','Rossoshany','Mamalyhacheckpoint','sokiryany','Bronnitsacheckpoint','ukrainianattheborder','zahidwtf_official','uzhgorod_21','UADrivers']
+          def one(u):
+              url='https://telecrow.com/api/tools/resolve-username?'+urllib.parse.urlencode({'u':u})
+              for attempt in range(4):
+                  try:
+                      req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'application/json'})
+                      with urllib.request.urlopen(req,timeout=25) as r: body=json.loads(r.read().decode())
+                      if body.get('ok') and body.get('id') is not None:
+                          raw=int(body['id']); s=str(raw); peer=int(s[4:]) if s.startswith('-100') else abs(raw)
+                          return {'username':u,'peerId':peer,'botApiId':raw,'type':body.get('type'),'title':body.get('name')}
+                      return {'username':u,'error':body.get('error','unknown')}
+                  except urllib.error.HTTPError as e:
+                      if e.code==429 and attempt<3: time.sleep(2*(attempt+1)); continue
+                      return {'username':u,'error':f'HTTP_{e.code}'}
+                  except Exception as e:
+                      if attempt<3: time.sleep(1+attempt); continue
+                      return {'username':u,'error':type(e).__name__}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+              results=list(ex.map(one,users))
+          for r in results: print(json.dumps(r,ensure_ascii=False))
+          print('SUMMARY ok=%d failed=%d total=%d' % (sum('peerId' in r for r in results),sum('peerId' not in r for r in results),len(results)))
