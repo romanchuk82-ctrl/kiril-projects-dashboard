@@ -13,7 +13,7 @@ jobs:
         with:
           ref: border-monitor
           fetch-depth: 0
-      - name: Apply duplicate fix v2
+      - name: Apply duplicate fix v3
         run: python scripts/fix_telegram_duplicate_placeholders.py
       - name: Validate
         run: |
@@ -32,10 +32,11 @@ jobs:
           if(same[0].humanReports!==1) throw new Error('human report not attached');
           console.log(JSON.stringify(same[0]));
           NODE
-      - name: Commit changes
+      - name: Commit changes safely
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add api/aggregate.js
           git commit -m "Remove duplicate Telegram placeholder rows"
+          git pull --rebase origin border-monitor
           git push origin HEAD:border-monitor
