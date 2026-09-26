@@ -8,7 +8,7 @@
 
   telegramStatusLabel = function(status, details) {
     const count = details?.totalSources ? ` ${details.connectedSources || 0}/${details.totalSources}` : '';
-    if (status === 'available') return 'готовий по кліку';
+    if (status === 'available') return 'готовий';
     if (details?.mode === 'tgatlas' && status === 'partial') return `активний${count}`;
     return baseTelegramStatusLabel(status, details);
   };
@@ -21,10 +21,10 @@
 
     const link = chat.url ? `<a href="${esc(chat.url)}" target="_blank" rel="noopener">Відкрити чат «${esc(chat.label || 'Telegram')}» ↗</a>` : '';
     const canLoad = ['available','connected','error','partial'].includes(chat.status || 'available');
-    let message = 'За останні 3 години релевантних повідомлень по цьому КПП не знайдено.';
-    if (chat.status === 'available') message = 'Натисни нижче, щоб перевірити свіжі повідомлення безпосередньо в Telegram.';
+    let message = 'За останні 3 години свіжих повідомлень по цьому КПП не знайдено.';
+    if (chat.status === 'available') message = 'Telegram перевіряється автоматично. За потреби можна оновити вручну.';
     if (chat.status === 'error') message = 'Остання перевірка Telegram не вдалася. Можна повторити.';
-    const button = canLoad ? `<button type="button" class="tg-load-btn" data-channel="${esc(chat.channel || '')}">Перевірити Telegram</button>` : '';
+    const button = canLoad ? `<button type="button" class="tg-load-btn" data-channel="${esc(chat.channel || '')}">Оновити Telegram</button>` : '';
     return `<div class="telegram-box no-tg"><div class="telegram-title">💬 Що пишуть у Telegram</div><div class="telegram-empty">${message}</div><div class="telegram-links">${button}${link}</div></div>`;
   };
 
@@ -64,7 +64,7 @@
       const meta = (data.sources || []).find(s => String(s.channel || '').toLowerCase() === key);
       if (meta) row.telegramChat = { label: meta.label, channel: meta.channel, url: meta.channelUrl, status: meta.status, freshReports: meta.items || 0, messagesScanned: meta.messagesScanned || 0, newestMessageAt: meta.newestMessageAt || null };
       render();
-      return Boolean(row.timeReliable);
+      return Boolean(row.timeReliable || row.telegramWaitMin != null || row.telegramQueueCars != null);
     } catch (error) {
       if (button) { button.disabled = false; button.dataset.loading = '0'; button.textContent = 'Повторити Telegram'; }
       if (!silent) console.warn('[telegram-ui]', String(error?.message || error));
@@ -78,9 +78,9 @@
     autoRunning.add(key);
     try {
       const visible = (typeof currentRows === 'function' ? currentRows() : state.rows).filter(r => !r.stale && r.telegramChat?.channel && r.timeReliable !== true);
-      const timed = visible.filter(r => r.waitMin != null).sort((a,b)=>a.waitMin-b.waitMin);
-      const noTime = visible.filter(r => r.waitMin == null);
-      const candidates = [...timed, ...noTime].slice(0, 4);
+      const timed = visible.filter(r => r.waitMin != null || r.telegramWaitMin != null).sort((a,b)=>(a.waitMin ?? a.telegramWaitMin ?? 999999)-(b.waitMin ?? b.telegramWaitMin ?? 999999));
+      const noTime = visible.filter(r => r.waitMin == null && r.telegramWaitMin == null);
+      const candidates = state.country === 'ALL' ? [...timed, ...noTime].slice(0, 4) : [...timed, ...noTime];
       for (const row of candidates) await loadTelegram(row.telegramChat.channel, null, true);
     } finally {
       autoRunning.delete(key);
