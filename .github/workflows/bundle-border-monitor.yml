@@ -31,6 +31,19 @@ jobs:
       - name: Preserve source of truth
         run: cp server.js server.source.js
 
+      - name: Make source bundle-safe
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('server.source.js')
+          s = p.read_text()
+          s = s.replace("import { fileURLToPath } from 'node:url';\n", "")
+          s = s.replace("const __dirname = path.dirname(fileURLToPath(import.meta.url));", "const __dirname = process.cwd();")
+          p.write_text(s)
+          PY
+          ! grep -q 'import.meta.url' server.source.js
+
       - name: Build self-contained CommonJS bundle
         run: npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node20 --minify-whitespace --outfile=server.bundle.cjs
 
@@ -66,7 +79,10 @@ jobs:
               fi
               sleep 1
             done
-            test "$ok" = 1
+            if [ "$ok" != 1 ]; then
+              cat server.log
+              exit 1
+            fi
             grep -q '"ok":true' /tmp/border-status.json
             kill $pid 2>/dev/null || true
             wait $pid 2>/dev/null || true
