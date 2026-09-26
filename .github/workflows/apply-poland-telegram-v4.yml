@@ -1,0 +1,50 @@
+name: Apply Poland Telegram v4
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-poland-telegram-v4.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply final fixes
+        run: python scripts/finalize_poland_telegram_v4.py
+      - name: Validate syntax and behavior
+        run: |
+          node --check api/aggregate.js
+          node --check api/telegram.js
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+          node --input-type=module <<'NODE'
+          import {parseWaitMin} from './api/telegram.js';
+          const t='До Польщі по зеленому легковим авто підʼїхали в 16:30 до укр кордону, в 21:15 уже все пройшли.';
+          const x=parseWaitMin(t);
+          if(x!==285) throw new Error(`elapsed parser expected 285, got ${x}`);
+          console.log('elapsed parser=',x);
+          NODE
+          node --input-type=module <<'NODE'
+          import {mergeTelegram} from './api/aggregate.js';
+          const real={id:'official-hryshiv',name:'Грушів - Будомєж',countryCode:'PL',country:'Польща',direction:'EU_UA',waitMin:0,sources:[],telegramChat:{channel:'hryshiv',label:'Грушів - Будоміж',status:'connected'}};
+          const placeholder={id:'tg-chat-hryshiv-EU_UA',name:'Грушів - Будоміж',countryCode:'PL',country:'Польща',direction:'EU_UA',waitMin:null,sources:[],telegramChat:{channel:'hryshiv',label:'Грушів - Будоміж',status:'connected'}};
+          const item={checkpoint:'Грушів - Будоміж',country_code:'PL',direction:'EU_UA',queue_cars:1,wait_min:null,age_min:10,note:'1 авто в Україну',source_channel:'hryshiv',channel_url:'https://t.me/hryshiv',source_label:'Грушів - Будоміж'};
+          const out=mergeTelegram([real,placeholder],[item],'EU_UA',[]);
+          if(out.length!==1) throw new Error(`duplicate rows remain: ${out.length}`);
+          if(out[0].humanReports!==1) throw new Error('Telegram report was not attached');
+          if(out[0].timeReliability!=='supported') throw new Error(`expected supported, got ${out[0].timeReliability}`);
+          console.log('dedupe/trust=',JSON.stringify({rows:out.length,state:out[0].timeReliability,reports:out[0].humanReports}));
+          NODE
+          grep -q 'лише людський звіт' public/app.js
+          grep -q 'Telegram повідомляє фактичний час проходження' public/app.js
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/aggregate.js api/telegram.js public/app.js
+          git commit -m "Finalize Poland Telegram visibility and elapsed time"
+          git push origin HEAD:border-monitor
