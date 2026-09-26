@@ -246,8 +246,18 @@ async function fetchSource(source, force = false) {
   const cached = sourceCache.get(key);
   if (!force && cached && Date.now() - cached.ts < SOURCE_TTL_MS) return cached.result;
   try {
-    const peer = await resolvePeer(source);
-    const body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });
+    let peer = await resolvePeer(source);
+    let body;
+    try {
+      body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });
+    } catch (error) {
+      if (error?.code !== 'RESOURCE_UNAVAILABLE') throw error;
+      peerCache.delete(key);
+      await new Promise(resolve => setTimeout(resolve, 900));
+      peer = await resolvePeer(source);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });
+    }
     const messages = (Array.isArray(body?.messages) ? body.messages : []).map(normalizeMessage).filter(m => Number.isInteger(m.id) && m.id > 0);
     const byId = new Map(messages.map(m => [m.id, m]));
     const nowMs = Date.now();
