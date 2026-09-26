@@ -1,0 +1,46 @@
+name: Final Border Monitor production check
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/final-border-monitor-production-check.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production sources
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          curl -fsS --max-time 30 "$base/health" | jq -c .
+          checkpoint=(Krakivets shegunimeduka rawahrebenne ustylug ugryniv hryshiv yagodyn smilnutsa nyzhankovychi maluibereznui uzhorodqueue MaliSelmentsi parubne solotkino diakove diakivchi krasnoyilsk bilacerkvasigetumarmatiei lugankabereg chopzahon viloktisabech dzvinkovelonya kosunopunkt Mohylivcheckpoint palankaudobne Rossoshany Mamalyhacheckpoint sokiryany Bronnitsacheckpoint)
+          general=(ukrainianattheborder zahidwtf_official uzhgorod_21 UADrivers)
+          cp_ok=0; cp_fail=0; gen_ok=0; gen_fail=0
+          for chat in "${checkpoint[@]}"; do
+            curl -fsS --max-time 70 "$base/snapshot?username=$chat&refresh=1" -o "/tmp/$chat.json"
+            status=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.status' "/tmp/$chat.json" | head -1)
+            scanned=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.messagesScanned' "/tmp/$chat.json" | head -1)
+            fresh=$(jq -r --arg c "$chat" '[.items[]|select((.source_channel|ascii_downcase)==($c|ascii_downcase))]|length' "/tmp/$chat.json")
+            err=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|(.error//"")' "/tmp/$chat.json" | head -1)
+            echo "CHECKPOINT $chat status=$status scanned=$scanned fresh=$fresh error=$err"
+            if [ "$status" = connected ]; then cp_ok=$((cp_ok+1)); else cp_fail=$((cp_fail+1)); fi
+            sleep 0.35
+          done
+          for chat in "${general[@]}"; do
+            curl -fsS --max-time 70 "$base/snapshot?username=$chat&refresh=1" -o "/tmp/$chat.json"
+            status=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.status' "/tmp/$chat.json" | head -1)
+            scanned=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.messagesScanned' "/tmp/$chat.json" | head -1)
+            echo "GENERAL $chat status=$status scanned=$scanned"
+            if [ "$status" = connected ]; then gen_ok=$((gen_ok+1)); else gen_fail=$((gen_fail+1)); fi
+            sleep 0.35
+          done
+          echo "TELEGRAM_SUMMARY checkpoints_connected=$cp_ok checkpoints_failed=$cp_fail general_connected=$gen_ok general_failed=$gen_fail total_connected=$((cp_ok+gen_ok))/33"
+          echo 'HRYSHIV_META'
+          jq -c '{source:(.sources[]|select(.channel=="hryshiv")|{status,messagesScanned,newestMessageAt,items,peerId,error}),sample:(.items[]|select(.source_channel=="hryshiv")|{checkpoint,direction,wait_min,queue_cars,age_min,message_id,source_url}|.)}' /tmp/hryshiv.json | head -3 || true
+          echo 'QUOTA'
+          jq -c '.quota' /tmp/hryshiv.json
+          for dir in UA_EU EU_UA; do
+            curl -fsS --max-time 90 "$base/api/aggregate?direction=$dir" -o "/tmp/agg-$dir.json"
+            jq -c --arg dir "$dir" '{direction:$dir,ok,rows:(.crossings|length),nakordoni:.sourceStatus.nakordoni,telegram:.sourceStatus.telegram,telegramMode:.sourceStatus.telegramDetails.mode,official:.sourceStatus.official,cameras:([.crossings[]|select(.camera!=null)]|length)}' "/tmp/agg-$dir.json"
+          done
