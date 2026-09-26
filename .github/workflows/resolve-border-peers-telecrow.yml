@@ -1,0 +1,35 @@
+name: Resolve Border Monitor Telegram peer IDs
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/resolve-border-peers-telecrow.yml']
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve all public sources
+        shell: python
+        run: |
+          import json,time,urllib.parse,urllib.request
+          users=['Krakivets','shegunimeduka','rawahrebenne','ustylug','ugryniv','hryshiv','yagodyn','smilnutsa','nyzhankovychi','maluibereznui','uzhorodqueue','MaliSelmentsi','parubne','solotkino','diakove','diakivchi','krasnoyilsk','bilacerkvasigetumarmatiei','lugankabereg','chopzahon','viloktisabech','dzvinkovelonya','kosunopunkt','Mohylivcheckpoint','palankaudobne','Rossoshany','Mamalyhacheckpoint','sokiryany','Bronnitsacheckpoint','ukrainianattheborder','zahidwtf_official','uzhgorod_21','UADrivers']
+          op=urllib.request.build_opener(); op.addheaders=[('User-Agent','Mozilla/5.0'),('Accept','application/json')]
+          ok=0; bad=0
+          for u in users:
+              url='https://telecrow.com/api/tools/resolve-username?'+urllib.parse.urlencode({'u':u})
+              try:
+                  with op.open(url,timeout=30) as r:
+                      body=json.loads(r.read().decode())
+                  if body.get('ok') and body.get('id') is not None:
+                      raw=int(body['id'])
+                      s=str(raw)
+                      peer=int(s[4:]) if s.startswith('-100') else abs(raw)
+                      print(json.dumps({'username':u,'peerId':peer,'botApiId':raw,'type':body.get('type'),'title':body.get('name')},ensure_ascii=False))
+                      ok+=1
+                  else:
+                      print(json.dumps({'username':u,'error':body.get('error','unknown')},ensure_ascii=False)); bad+=1
+              except Exception as e:
+                  print(json.dumps({'username':u,'error':type(e).__name__},ensure_ascii=False)); bad+=1
+              time.sleep(0.7)
+          print(f'SUMMARY ok={ok} failed={bad} total={len(users)}')
