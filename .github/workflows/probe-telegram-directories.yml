@@ -1,0 +1,35 @@
+name: Probe Telegram directories for peer ids
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-telegram-directories.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe known chats
+        shell: bash
+        run: |
+          set -u
+          declare -A ids=( [hryshiv]=1713079377 [Krakivets]=1561698401 [shegunimeduka]=1749456888 )
+          for chat in hryshiv Krakivets shegunimeduka; do
+            echo "===== $chat expected=${ids[$chat]} ====="
+            urls=(
+              "https://nicegram.app/hub/group/$chat"
+              "https://tgsearch.org/search?query=$chat"
+              "https://tgstat.com/search?q=$chat"
+              "https://telemetr.io/en/channels?channel=$chat"
+              "https://telegramchannels.me/groups/$chat"
+            )
+            i=0
+            for url in "${urls[@]}"; do
+              i=$((i+1)); f="/tmp/${chat}_${i}.html"
+              code=$(curl -L --connect-timeout 10 --max-time 30 -A 'Mozilla/5.0' -sS -o "$f" -w '%{http_code}' "$url" || true)
+              echo "--- $url http=$code bytes=$(wc -c < "$f" 2>/dev/null || echo 0)"
+              grep -n -E "${ids[$chat]}|-100${ids[$chat]}|peer.?id|chat.?id|channel.?id|telegram.?id" "$f" 2>/dev/null | head -30 || true
+              echo 'numbers-near-100:'
+              grep -oE -- '-100[0-9]{8,13}' "$f" 2>/dev/null | sort -u | head -20 || true
+            done
+          done
