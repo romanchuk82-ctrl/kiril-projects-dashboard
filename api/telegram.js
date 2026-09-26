@@ -11,42 +11,42 @@ let fullRefreshPromise = null;
 let quotaState = { remaining: null, observedAt: null };
 
 export const CHAT_SOURCES = [
-  { username: 'Krakivets', label: 'Краківець - Корчова', checkpoint: 'Краківець - Корчова', country: 'Польща', countryCode: 'PL', aliases: ['краківець', 'краковець', 'корчова', 'korczowa'] },
-  { username: 'shegunimeduka', label: 'Шегині - Медика', checkpoint: 'Шегині - Медика', country: 'Польща', countryCode: 'PL', aliases: ['шегині', 'медика', 'medyka'] },
-  { username: 'rawahrebenne', label: 'Рава-Руська - Гребенне', checkpoint: 'Рава-Руська - Гребенне', country: 'Польща', countryCode: 'PL', aliases: ['рава руська', 'рава-руська', 'гребенне', 'hrebenne'] },
-  { username: 'ustylug', label: 'Устилуг - Зосин', checkpoint: 'Устилуг - Зосин', country: 'Польща', countryCode: 'PL', aliases: ['устилуг', 'зосин', 'zosin'] },
-  { username: 'ugryniv', label: 'Угринів - Долгобичув', checkpoint: 'Угринів - Долгобичув', country: 'Польща', countryCode: 'PL', aliases: ['угринів', 'долгобичув', 'dolhobyczow', 'dołhobyczów'] },
-  { username: 'hryshiv', label: 'Грушів - Будоміж', checkpoint: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL', aliases: ['грушів', 'будоміж', 'будомєж', 'budomierz'] },
-  { username: 'yagodyn', label: 'Ягодин - Дорогуск', checkpoint: 'Ягодин - Дорогуск', country: 'Польща', countryCode: 'PL', aliases: ['ягодин', 'дорогуск', 'dorohusk'] },
-  { username: 'smilnutsa', label: 'Смільниця - Кросценко', checkpoint: 'Смільниця - Кросценко', country: 'Польща', countryCode: 'PL', aliases: ['смільниця', 'кросценко', 'kroscienko', 'krościenko'] },
-  { username: 'nyzhankovychi', label: 'Нижанковичі - Мальховичі', checkpoint: 'Нижанковичі - Мальховичі', country: 'Польща', countryCode: 'PL', aliases: ['nyzhankovychi', 'нижанковичі', 'мальховичі', 'malhowice'] },
-  { username: 'maluibereznui', label: 'Малий Березний - Убля', checkpoint: 'Малий Березний - Убля', country: 'Словаччина', countryCode: 'SK', aliases: ['малий березний', 'убля', 'ubla', 'ubľa'] },
-  { username: 'uzhorodqueue', label: 'Ужгород - Вишнє Нємецьке', checkpoint: 'Ужгород - Вишнє Нємецьке', country: 'Словаччина', countryCode: 'SK', aliases: ['ужгород', 'вишнє немецьке', 'вишнє нємецьке', 'vysne nemecke', 'vyšné nemecké'] },
-  { username: 'MaliSelmentsi', label: 'Малі Селменці - Вельке Слеменце', checkpoint: 'Малі Селменці - Вельке Слеменце', country: 'Словаччина', countryCode: 'SK', aliases: ['малі селменці', 'вельке слеменце', 'velke slemence', 'veľké slemence'] },
-  { username: 'parubne', label: 'Порубне - Сірет', checkpoint: 'Порубне - Сірет', country: 'Румунія', countryCode: 'RO', aliases: ['порубне', 'сірет', 'сирет', 'siret'] },
-  { username: 'solotkino', label: 'Солотвино - Сігету Мармацієй', checkpoint: 'Солотвино - Сігету Мармацієй', country: 'Румунія', countryCode: 'RO', aliases: ['солотвино', 'сігету', 'сигету', 'sighetu'] },
-  { username: 'diakove', label: 'Дякове - Халмеу', checkpoint: 'Дякове - Халмеу', country: 'Румунія', countryCode: 'RO', aliases: ['дякове', 'халмеу', 'halmeu'] },
-  { username: 'diakivchi', label: 'Дяківці - Раковець', checkpoint: 'Дяківці - Раковець', country: 'Румунія', countryCode: 'RO', aliases: ['дяківці', 'раковець', 'racovat', 'racovăț'] },
-  { username: 'krasnoyilsk', label: 'Красноїльськ - Вікову де Сус', checkpoint: 'Красноїльськ - Вікову де Сус', country: 'Румунія', countryCode: 'RO', aliases: ['красноїльськ', 'красноільськ', 'вікову', 'vicovu'] },
-  { username: 'bilacerkvasigetumarmatiei', label: 'Біла Церква - Сігету-Мармацієй', checkpoint: 'Біла Церква - Сігету-Мармацієй', country: 'Румунія', countryCode: 'RO', aliases: ['біла церква', 'сігету', 'сигету', 'sighetu'] },
-  { username: 'lugankabereg', label: 'Лужанка - Берегшурань', checkpoint: 'Лужанка - Берегшурань', country: 'Угорщина', countryCode: 'HU', aliases: ['лужанка', 'берегшурань', 'beregsurany', 'beregsurány', 'астей'] },
-  { username: 'chopzahon', label: 'Чоп (Тиса) - Захонь', checkpoint: 'Чоп (Тиса) - Захонь', country: 'Угорщина', countryCode: 'HU', aliases: ['чоп', 'тиса', 'захонь', 'zahony', 'záhony'] },
-  { username: 'viloktisabech', label: 'Вилок - Тісабеч', checkpoint: 'Вилок - Тісабеч', country: 'Угорщина', countryCode: 'HU', aliases: ['вилок', 'тісабеч', 'тисабеч', 'tiszabecs', 'vilok'] },
-  { username: 'dzvinkovelonya', label: 'Дзвінкове - Лонья', checkpoint: 'Дзвінкове - Лонья', country: 'Угорщина', countryCode: 'HU', aliases: ['дзвінкове', 'лонья', 'lonya', 'lónya', 'dzvinkove'] },
-  { username: 'kosunopunkt', label: 'Косино - Барабаш', checkpoint: 'Косино - Барабаш', country: 'Угорщина', countryCode: 'HU', aliases: ['косино', 'барабаш', 'barabas', 'barabás', 'koson'] },
-  { username: 'Mohylivcheckpoint', label: 'Могилів-Подільський - Отачь', checkpoint: 'Могилів-Подільський - Отачь', country: 'Молдова', countryCode: 'MD', aliases: ['могилів подільський', 'могилев подольский', 'отач', 'отачь', 'otaci'] },
-  { username: 'palankaudobne', label: 'Маяки-Удобне - Паланка', checkpoint: 'Маяки-Удобне - Паланка', country: 'Молдова', countryCode: 'MD', aliases: ['маяки', 'удобне', 'паланка', 'palanca'] },
-  { username: 'Rossoshany', label: 'Россошани - Бричани', checkpoint: 'Россошани - Бричани', country: 'Молдова', countryCode: 'MD', aliases: ['россошани', 'росошани', 'бричани', 'briceni'] },
-  { username: 'Mamalyhacheckpoint', label: 'Мамалига - Крива', checkpoint: 'Мамалига - Крива', country: 'Молдова', countryCode: 'MD', aliases: ['мамалига', 'крива', 'crivă', 'criva'] },
-  { username: 'sokiryany', label: 'Сокиряни - Окниця', checkpoint: 'Сокиряни - Окниця', country: 'Молдова', countryCode: 'MD', aliases: ['сокиряни', 'окниця', 'ocnița', 'ocnita'] },
-  { username: 'Bronnitsacheckpoint', label: 'Бронниця - Унгурь', checkpoint: 'Бронниця - Унгурь', country: 'Молдова', countryCode: 'MD', aliases: ['бронниця', 'унгурь', 'unguri'] }
+  { username: 'Krakivets', peerId: 1561698401, label: 'Краківець - Корчова', checkpoint: 'Краківець - Корчова', country: 'Польща', countryCode: 'PL', aliases: ['краківець', 'краковець', 'корчова', 'korczowa'] },
+  { username: 'shegunimeduka', peerId: 1749456888, label: 'Шегині - Медика', checkpoint: 'Шегині - Медика', country: 'Польща', countryCode: 'PL', aliases: ['шегині', 'медика', 'medyka'] },
+  { username: 'rawahrebenne', peerId: 1684314020, label: 'Рава-Руська - Гребенне', checkpoint: 'Рава-Руська - Гребенне', country: 'Польща', countryCode: 'PL', aliases: ['рава руська', 'рава-руська', 'гребенне', 'hrebenne'] },
+  { username: 'ustylug', peerId: 1664739209, label: 'Устилуг - Зосин', checkpoint: 'Устилуг - Зосин', country: 'Польща', countryCode: 'PL', aliases: ['устилуг', 'зосин', 'zosin'] },
+  { username: 'ugryniv', peerId: 1782023696, label: 'Угринів - Долгобичув', checkpoint: 'Угринів - Долгобичув', country: 'Польща', countryCode: 'PL', aliases: ['угринів', 'долгобичув', 'dolhobyczow', 'dołhobyczów'] },
+  { username: 'hryshiv', peerId: 1713079377, label: 'Грушів - Будоміж', checkpoint: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL', aliases: ['грушів', 'будоміж', 'будомєж', 'budomierz'] },
+  { username: 'yagodyn', peerId: 1681870274, label: 'Ягодин - Дорогуск', checkpoint: 'Ягодин - Дорогуск', country: 'Польща', countryCode: 'PL', aliases: ['ягодин', 'дорогуск', 'dorohusk'] },
+  { username: 'smilnutsa', peerId: 1669374249, label: 'Смільниця - Кросценко', checkpoint: 'Смільниця - Кросценко', country: 'Польща', countryCode: 'PL', aliases: ['смільниця', 'кросценко', 'kroscienko', 'krościenko'] },
+  { username: 'nyzhankovychi', peerId: 2377629189, label: 'Нижанковичі - Мальховичі', checkpoint: 'Нижанковичі - Мальховичі', country: 'Польща', countryCode: 'PL', aliases: ['nyzhankovychi', 'нижанковичі', 'мальховичі', 'malhowice'] },
+  { username: 'maluibereznui', peerId: 1784524649, label: 'Малий Березний - Убля', checkpoint: 'Малий Березний - Убля', country: 'Словаччина', countryCode: 'SK', aliases: ['малий березний', 'убля', 'ubla', 'ubľa'] },
+  { username: 'uzhorodqueue', peerId: 1767036280, label: 'Ужгород - Вишнє Нємецьке', checkpoint: 'Ужгород - Вишнє Нємецьке', country: 'Словаччина', countryCode: 'SK', aliases: ['ужгород', 'вишнє немецьке', 'вишнє нємецьке', 'vysne nemecke', 'vyšné nemecké'] },
+  { username: 'MaliSelmentsi', peerId: 1596646776, label: 'Малі Селменці - Вельке Слеменце', checkpoint: 'Малі Селменці - Вельке Слеменце', country: 'Словаччина', countryCode: 'SK', aliases: ['малі селменці', 'вельке слеменце', 'velke slemence', 'veľké slemence'] },
+  { username: 'parubne', peerId: 1873120038, label: 'Порубне - Сірет', checkpoint: 'Порубне - Сірет', country: 'Румунія', countryCode: 'RO', aliases: ['порубне', 'сірет', 'сирет', 'siret'] },
+  { username: 'solotkino', peerId: 1739833078, label: 'Солотвино - Сігету Мармацієй', checkpoint: 'Солотвино - Сігету Мармацієй', country: 'Румунія', countryCode: 'RO', aliases: ['солотвино', 'сігету', 'сигету', 'sighetu'] },
+  { username: 'diakove', peerId: 1741931504, label: 'Дякове - Халмеу', checkpoint: 'Дякове - Халмеу', country: 'Румунія', countryCode: 'RO', aliases: ['дякове', 'халмеу', 'halmeu'] },
+  { username: 'diakivchi', peerId: 1830834577, label: 'Дяківці - Раковець', checkpoint: 'Дяківці - Раковець', country: 'Румунія', countryCode: 'RO', aliases: ['дяківці', 'раковець', 'racovat', 'racovăț'] },
+  { username: 'krasnoyilsk', peerId: 1539991687, label: 'Красноїльськ - Вікову де Сус', checkpoint: 'Красноїльськ - Вікову де Сус', country: 'Румунія', countryCode: 'RO', aliases: ['красноїльськ', 'красноільськ', 'вікову', 'vicovu'] },
+  { username: 'bilacerkvasigetumarmatiei', peerId: 4361955950, label: 'Біла Церква - Сігету-Мармацієй', checkpoint: 'Біла Церква - Сігету-Мармацієй', country: 'Румунія', countryCode: 'RO', aliases: ['біла церква', 'сігету', 'сигету', 'sighetu'] },
+  { username: 'lugankabereg', peerId: 1656001875, label: 'Лужанка - Берегшурань', checkpoint: 'Лужанка - Берегшурань', country: 'Угорщина', countryCode: 'HU', aliases: ['лужанка', 'берегшурань', 'beregsurany', 'beregsurány', 'астей'] },
+  { username: 'chopzahon', peerId: 1481395430, label: 'Чоп (Тиса) - Захонь', checkpoint: 'Чоп (Тиса) - Захонь', country: 'Угорщина', countryCode: 'HU', aliases: ['чоп', 'тиса', 'захонь', 'zahony', 'záhony'] },
+  { username: 'viloktisabech', peerId: 1770808982, label: 'Вилок - Тісабеч', checkpoint: 'Вилок - Тісабеч', country: 'Угорщина', countryCode: 'HU', aliases: ['вилок', 'тісабеч', 'тисабеч', 'tiszabecs', 'vilok'] },
+  { username: 'dzvinkovelonya', peerId: 1661124024, label: 'Дзвінкове - Лонья', checkpoint: 'Дзвінкове - Лонья', country: 'Угорщина', countryCode: 'HU', aliases: ['дзвінкове', 'лонья', 'lonya', 'lónya', 'dzvinkove'] },
+  { username: 'kosunopunkt', peerId: 1532406932, label: 'Косино - Барабаш', checkpoint: 'Косино - Барабаш', country: 'Угорщина', countryCode: 'HU', aliases: ['косино', 'барабаш', 'barabas', 'barabás', 'koson'] },
+  { username: 'Mohylivcheckpoint', peerId: 1765698625, label: 'Могилів-Подільський - Отачь', checkpoint: 'Могилів-Подільський - Отачь', country: 'Молдова', countryCode: 'MD', aliases: ['могилів подільський', 'могилев подольский', 'отач', 'отачь', 'otaci'] },
+  { username: 'palankaudobne', peerId: 2247255178, label: 'Маяки-Удобне - Паланка', checkpoint: 'Маяки-Удобне - Паланка', country: 'Молдова', countryCode: 'MD', aliases: ['маяки', 'удобне', 'паланка', 'palanca'] },
+  { username: 'Rossoshany', peerId: 1639876515, label: 'Россошани - Бричани', checkpoint: 'Россошани - Бричани', country: 'Молдова', countryCode: 'MD', aliases: ['россошани', 'росошани', 'бричани', 'briceni'] },
+  { username: 'Mamalyhacheckpoint', peerId: 1741076173, label: 'Мамалига - Крива', checkpoint: 'Мамалига - Крива', country: 'Молдова', countryCode: 'MD', aliases: ['мамалига', 'крива', 'crivă', 'criva'] },
+  { username: 'sokiryany', peerId: 1553828806, label: 'Сокиряни - Окниця', checkpoint: 'Сокиряни - Окниця', country: 'Молдова', countryCode: 'MD', aliases: ['сокиряни', 'окниця', 'ocnița', 'ocnita'] },
+  { username: 'Bronnitsacheckpoint', peerId: 1415316943, label: 'Бронниця - Унгурь', checkpoint: 'Бронниця - Унгурь', country: 'Молдова', countryCode: 'MD', aliases: ['бронниця', 'унгурь', 'unguri'] }
 ].map(x => ({ ...x, kind: 'checkpoint_chat', channelUrl: `https://t.me/${x.username}` }));
 
 export const GENERAL_SOURCES = [
-  { username: 'ukrainianattheborder', label: 'Українці на кордоні', kind: 'general', channelUrl: 'https://t.me/ukrainianattheborder' },
-  { username: 'zahidwtf_official', label: 'ZAHIDWTF 24/7', kind: 'general', channelUrl: 'https://t.me/zahidwtf_official' },
-  { username: 'uzhgorod_21', label: '21 Ужгород', kind: 'general', channelUrl: 'https://t.me/uzhgorod_21' },
-  { username: 'UADrivers', label: 'Водії України', kind: 'general', channelUrl: 'https://t.me/UADrivers' }
+  { username: 'ukrainianattheborder', peerId: 1745721987, label: 'Українці на кордоні', kind: 'general', channelUrl: 'https://t.me/ukrainianattheborder' },
+  { username: 'zahidwtf_official', peerId: 1410990532, label: 'ZAHIDWTF 24/7', kind: 'general', channelUrl: 'https://t.me/zahidwtf_official' },
+  { username: 'uzhgorod_21', peerId: 1687563086, label: '21 Ужгород', kind: 'general', channelUrl: 'https://t.me/uzhgorod_21' },
+  { username: 'UADrivers', peerId: 1368206617, label: 'Водії України', kind: 'general', channelUrl: 'https://t.me/UADrivers' }
 ];
 
 const SOURCES = [...CHAT_SOURCES, ...GENERAL_SOURCES];
@@ -238,8 +238,15 @@ function sourceByUsername(username) {
 }
 
 async function resolvePeer(source) {
-  const cached = peerCache.get(source.username.toLowerCase());
+  const cacheKey = source.username.toLowerCase();
+  const cached = peerCache.get(cacheKey);
   if (cached) return cached;
+  const staticId = Number(source.peerId);
+  if (Number.isSafeInteger(staticId) && staticId > 0) {
+    const value = { id: staticId, title: source.label, static: true };
+    peerCache.set(cacheKey, value);
+    return value;
+  }
   const body = await apiGet(`/v1/usernames/${encodeURIComponent(source.username)}`);
   const candidates = [...(Array.isArray(body?.chats) ? body.chats : []), ...(Array.isArray(body?.users) ? body.users : [])];
   const wanted = source.username.toLowerCase();
