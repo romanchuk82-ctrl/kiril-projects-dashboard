@@ -1,0 +1,19 @@
+name: Probe static peers quick
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-static-peers-quick.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify direct history without username lookup
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          for chat in hryshiv rawahrebenne parubne lugankabereg Mohylivcheckpoint; do
+            curl -fsS --max-time 70 "$base/snapshot?username=$chat&refresh=1" -o "/tmp/$chat.json"
+            jq -c --arg c "$chat" '{chat:$c,status:(.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.status),peer:(.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.peerId),scanned:(.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.messagesScanned),error:(.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.error),fresh:([.items[]|select((.source_channel|ascii_downcase)==($c|ascii_downcase))]|length),quota:.quota}' "/tmp/$chat.json"
+          done
