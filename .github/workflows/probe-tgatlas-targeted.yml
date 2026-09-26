@@ -1,0 +1,29 @@
+name: Probe tgAtlas targeted
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-tgatlas-targeted.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe previously throttled checkpoint chats
+        shell: bash
+        run: |
+          set -u
+          base='https://border-monitor-ua.onrender.com'
+          chats=(rawahrebenne ustylug ugryniv yagodyn parubne solotkino diakove diakivchi krasnoyilsk bilacerkvasigetumarmatiei lugankabereg chopzahon viloktisabech kosunopunkt palankaudobne Rossoshany Mamalyhacheckpoint sokiryany Bronnitsacheckpoint)
+          ok=0; fail=0
+          for chat in "${chats[@]}"; do
+            out=$(curl -fsS --max-time 70 "$base/snapshot?username=$chat&refresh=1" || true)
+            status=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|.status' <<<"$out" 2>/dev/null | head -1)
+            peer=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|(.peerId//"")' <<<"$out" 2>/dev/null | head -1)
+            err=$(jq -r --arg c "$chat" '.sources[]|select((.channel|ascii_downcase)==($c|ascii_downcase))|(.error//"")' <<<"$out" 2>/dev/null | head -1)
+            qr=$(jq -c '.quota//null' <<<"$out" 2>/dev/null || echo null)
+            echo "$chat status=${status:-no_response} peer=${peer:-} error=${err:-} quota=$qr"
+            if [ "$status" = connected ]; then ok=$((ok+1)); else fail=$((fail+1)); fi
+            sleep 6
+          done
+          echo "SUMMARY connected=$ok failed=$fail total=${#chats[@]}"
