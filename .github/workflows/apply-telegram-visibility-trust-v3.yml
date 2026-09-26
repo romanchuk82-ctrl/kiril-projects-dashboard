@@ -1,0 +1,49 @@
+name: Apply Telegram visibility trust v3
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-telegram-visibility-trust-v3.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply patch
+        run: python scripts/fix_telegram_visibility_trust_v3.py
+      - name: Validate syntax and trust cases
+        run: |
+          node --check api/aggregate.js
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+          node --input-type=module <<'NODE'
+          import { applyTelegramTimeTrust, mergeTelegram } from './api/aggregate.js';
+          const t=(o)=>({source:'telegram',ageMin:20,...o});
+          const low=applyTelegramTimeTrust({waitMin:0,sources:[t({queueCars:1,note:'1 машина'})]});
+          const high=applyTelegramTimeTrust({waitMin:120,sources:[t({queueCars:50,note:'50 машин в Україну'})]});
+          const conflict=applyTelegramTimeTrust({waitMin:0,sources:[t({queueCars:30,note:'30 авто'})]});
+          const question=applyTelegramTimeTrust({waitMin:0,sources:[t({note:'А в Польщу немає черги?'})]});
+          const oldEnough=applyTelegramTimeTrust({waitMin:120,sources:[{source:'telegram',ageMin:158,queueCars:50,note:'50 машин'}]});
+          if(!low.timeReliable || low.timeReliability!=='supported') throw new Error('single low queue should support');
+          if(!high.timeReliable || high.timeReliability!=='supported') throw new Error('single high queue should support');
+          if(conflict.timeReliable || conflict.timeReliability!=='conflict') throw new Error('queue conflict failed');
+          if(question.timeReliable) throw new Error('question must not count as evidence');
+          if(!oldEnough.timeReliable) throw new Error('3-hour window failed');
+          const base=[{name:'Грушів - Будомєж',countryCode:'PL',direction:'EU_UA',waitMin:0,sources:[],telegramChat:null}];
+          const chat=[{kind:'checkpoint_chat',checkpoint:'Грушів - Будоміж',countryCode:'PL',channel:'hryshiv',label:'Грушів - Будоміж',channelUrl:'https://t.me/hryshiv',status:'connected',aliases:['грушів','будомєж','будоміж']}];
+          const items=[{checkpoint:'Грушів - Будоміж',country_code:'PL',direction:'EU_UA',queue_cars:30,age_min:20,updated_at:new Date().toISOString(),source_channel:'hryshiv',source_label:'Грушів - Будоміж',channel_url:'https://t.me/hryshiv',note:'30 авто в Україну'}];
+          const merged=mergeTelegram(base,items,'EU_UA',chat);
+          if(merged.length!==1 || merged[0].humanReports!==1) throw new Error('channel merge failed');
+          console.log(JSON.stringify({low,high,conflict,question,oldEnough,merged:merged[0]}));
+          NODE
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/aggregate.js public/app.js public/tgatlas-ui.js
+          git commit -m "Fix Telegram visibility and trust matching"
+          git push origin HEAD:border-monitor
