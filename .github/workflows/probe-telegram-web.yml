@@ -21,7 +21,7 @@ jobs:
             url="https://t.me/s/$chat"
             code=$(curl -L --connect-timeout 10 --max-time 30 -A 'Mozilla/5.0' -sS -o "/tmp/$chat.html" -w '%{http_code}' "$url" || true)
             bytes=$(wc -c < "/tmp/$chat.html" 2>/dev/null || echo 0)
-            posts=$(( (grep -o 'tgme_widget_message_wrap' "/tmp/$chat.html" 2>/dev/null || true) | wc -l ))
+            posts=$( (grep -o 'tgme_widget_message_wrap' "/tmp/$chat.html" 2>/dev/null || true) | wc -l | tr -d ' ' )
             title=$( (grep -o '<meta property="og:title" content="[^"]*"' "/tmp/$chat.html" 2>/dev/null || true) | head -1 | sed 's/.*content="//;s/"$//' )
             newest=$( (grep -o 'data-post="[^"]*"' "/tmp/$chat.html" 2>/dev/null || true) | tail -1 | sed 's/data-post="//;s/"//' )
             preview=$(head -c 120 "/tmp/$chat.html" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' || true)
