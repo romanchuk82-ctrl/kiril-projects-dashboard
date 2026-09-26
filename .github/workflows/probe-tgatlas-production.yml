@@ -1,0 +1,29 @@
+name: Probe tgAtlas production
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/probe-tgatlas-production.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production tgAtlas reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          curl -fsS --retry 3 --retry-delay 2 --max-time 60 "$base/health" | jq -c .
+          for chat in hryshiv Krakivets shegunimeduka; do
+            echo "--- $chat"
+            curl -fsS --retry 2 --retry-delay 2 --max-time 90 "$base/snapshot?username=$chat&refresh=1" -o "/tmp/$chat.json"
+            jq -c --arg chat "$chat" '{mode,status,requested,items_count:(.items|length),source:(.sources[]|select((.channel|ascii_downcase)==($chat|ascii_downcase))|{channel,status,messagesScanned,newestMessageAt,items,peerId,error}),sample:(.items[0]?|{checkpoint,direction,wait_min,queue_cars,age_min,source_channel,transport,message_id})}' "/tmp/$chat.json"
+          done
+          echo '--- FULL'
+          curl -fsS --retry 1 --max-time 240 "$base/snapshot?full=1" -o /tmp/full.json
+          jq -c '{mode,status,totalSources:(.sources|length),connected:([.sources[]|select(.status=="connected")]|length),errors:([.sources[]|select(.status=="error")]|length),checkpointSources:([.sources[]|select(.kind=="checkpoint_chat")]|length),checkpointConnected:([.sources[]|select(.kind=="checkpoint_chat" and .status=="connected")]|length),freshItems:(.items|length),hryshiv:(.sources[]|select(.channel=="hryshiv")|{status,messagesScanned,newestMessageAt,items,peerId,error}),errorSources:[.sources[]|select(.status=="error")|{channel,error}]}' /tmp/full.json
