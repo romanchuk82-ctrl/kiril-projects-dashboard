@@ -13,7 +13,7 @@ jobs:
         with:
           ref: border-monitor
           fetch-depth: 0
-      - name: Apply duplicate fix v3
+      - name: Apply duplicate fix v4
         run: python scripts/fix_telegram_duplicate_placeholders.py
       - name: Validate
         run: |
