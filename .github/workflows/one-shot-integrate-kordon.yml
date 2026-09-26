@@ -23,98 +23,39 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Wire Kordon into aggregation and UI
+        env:
+          HELPER_B64: ZnVuY3Rpb24gbWVyZ2VLb3Jkb24oY3Jvc3NpbmdzLGtvcmRvbixkaXJlY3Rpb24pewogIGNvbnN0IG91dD1BcnJheS5pc0FycmF5KGNyb3NzaW5ncyk/Y3Jvc3NpbmdzLm1hcCh4PT4oey4uLngsc291cmNlczpbLi4uKHguc291cmNlc3x8W10pXX0pKTpbXTsKICBpZihkaXJlY3Rpb24hPT0nVUFfRVUnfHwhQXJyYXkuaXNBcnJheShrb3Jkb24/Lml0ZW1zKSlyZXR1cm4gb3V0OwogIGZvcihjb25zdCBpdGVtIG9mIGtvcmRvbi5pdGVtcyl7CiAgICBjb25zdCBxPU51bWJlcihpdGVtPy5xdWV1ZUNhcnMpOwogICAgaWYoIU51bWJlci5pc0Zpbml0ZShxKXx8cTwwfHxpdGVtPy5zdGFsZSljb250aW51ZTsKICAgIGxldCBmPW91dC5maW5kKHg9PnJvd01hdGNoZXMoeCxpdGVtLm5hbWUsJ1BMJyxbXSkpOwogICAgaWYoIWYpewogICAgICBmPXtpZDpga29yZG9uLSR7a2V5TmFtZShpdGVtLm5hbWUpfS0ke2RpcmVjdGlvbn1gLHBwaWQ6bnVsbCxuYW1lOml0ZW0ubmFtZSxjb3VudHJ5OifQn9C+0LvRjNGJ0LAnLGNvdW50cnlDb2RlOidQTCcsZGlyZWN0aW9uLHF1ZXVlQ2FyczpudWxsLHdhaXRNaW46bnVsbCx3YWl0U3RhdHVzOm51bGwsYWdlTWluOml0ZW0uYWdlTWluPz9udWxsLHVwZGF0ZWRBdDppdGVtLnVwZGF0ZWRBdHx8bnVsbCx0cmVuZDondW5rbm93bicsdHJlbmRQZXJjZW50Om51bGwsc3RhbGU6ZmFsc2UsY29uZmlkZW5jZTonbWVkaXVtJyxzb3VyY2VVcmw6aXRlbS5zb3VyY2VVcmx8fCdodHRwczovL2tvcmRvbi5pbmZvLycsc291cmNlczpbXX07CiAgICAgIG91dC5wdXNoKGYpCiAgICB9CiAgICBjb25zdCB3YXNTdGFsZT1Cb29sZWFuKGYuc3RhbGUpOwogICAgZi5zb3VyY2VzLnB1c2goe3NvdXJjZTona29yZG9uX2luZm8nLGxhYmVsOidLb3Jkb24uaW5mbyDCtyDQtNCw0L3TliDQlNCf0KHQoycscXVldWVDYXJzOk1hdGgucm91bmQocSksdXBkYXRlZEF0Oml0ZW0udXBkYXRlZEF0fHxudWxsLGFnZU1pbjppdGVtLmFnZU1pbj8/bnVsbCxzb3VyY2VVcmw6aXRlbS5zb3VyY2VVcmx8fCdodHRwczovL2tvcmRvbi5pbmZvLycsbm90ZTpgJHtNYXRoLnJvdW5kKHEpfSDQsNCy0YLQviDCtyDQt9CwINC00LDQvdC40LzQuCDQlNCf0KHQoyDRh9C10YDQtdC3IEtvcmRvbi5pbmZvYCxldmlkZW5jZTppdGVtLmV2aWRlbmNlfHxudWxsfSk7CiAgICBmLnF1ZXVlQ2Fycz1NYXRoLnJvdW5kKHEpOwogICAgZi5xdWV1ZVNvdXJjZT0na29yZG9uX2luZm8nOwogICAgZi5xdWV1ZUFnZU1pbj1pdGVtLmFnZU1pbj8/bnVsbDsKICAgIGlmKHdhc1N0YWxlJiZmLndhaXRNaW4hPW51bGwpe2Yud2FpdE1pbj1udWxsO2YuYmFzZVdhaXRNaW49bnVsbH0KICAgIGlmKGl0ZW0uYWdlTWluIT1udWxsJiYoZi5hZ2VNaW49PW51bGx8fE51bWJlcihpdGVtLmFnZU1pbik8TnVtYmVyKGYuYWdlTWluKSkpZi5hZ2VNaW49TnVtYmVyKGl0ZW0uYWdlTWluKTsKICAgIGlmKGl0ZW0udXBkYXRlZEF0KWYudXBkYXRlZEF0PWl0ZW0udXBkYXRlZEF0OwogICAgZi5zdGFsZT1mYWxzZTsKICAgIGYuY29uZmlkZW5jZT1mLmNvbmZpZGVuY2U9PT0naGlnaCc/J2hpZ2gnOidtZWRpdW0nOwogICAgZi5jYW1lcmE9Zi5jYW1lcmF8fGNhbWVyYUZvcihmKQogIH0KICByZXR1cm4gb3V0Cn0KZnVuY3Rpb24ga29yZG9uRGV0YWlscyhrb3Jkb24pe3JldHVybntjb3VudDpBcnJheS5pc0FycmF5KGtvcmRvbj8uaXRlbXMpP2tvcmRvbi5pdGVtcy5sZW5ndGg6MCxhZ2VNaW46a29yZG9uPy5hZ2VNaW4/P251bGwsdXBzdHJlYW1DbG9jazprb3Jkb24/LnVwc3RyZWFtQ2xvY2s/P251bGwsYXR0cmlidXRpb246a29yZG9uPy5hdHRyaWJ1dGlvbnx8bnVsbCxlcnJvcjprb3Jkb24/LmVycm9yfHxudWxsfX0K
+          HANDLER_B64: ZXhwb3J0IGRlZmF1bHQgYXN5bmMgZnVuY3Rpb24gaGFuZGxlcihyZXEscmVzKXsKICBpZihyZXEubWV0aG9kIT09J0dFVCcpcmV0dXJuIHJlcy5zdGF0dXMoNDA1KS5qc29uKHtvazpmYWxzZSxlcnJvcjonbWV0aG9kX25vdF9hbGxvd2VkJ30pOwogIGNvbnN0IGRpcmVjdGlvbj1yZXEucXVlcnk/LmRpcmVjdGlvbj09PSdFVV9VQSc/J0VVX1VBJzonVUFfRVUnOwogIGNvbnN0IHJlZ2lvbmFsPWF3YWl0IGZldGNoUmVnaW9uYWxVcHN0cmVhbShkaXJlY3Rpb24pOwogIGlmKHJlZ2lvbmFsKXsKICAgIGNvbnN0IFt0Zyxrb3Jkb25dPWF3YWl0IFByb21pc2UuYWxsKFtnZXRUZWxlZ3JhbSgpLGZldGNoS29yZG9uTGl2ZShkaXJlY3Rpb24pXSk7CiAgICBsZXQgYmFzZT1tZXJnZUtvcmRvbihBcnJheS5pc0FycmF5KHJlZ2lvbmFsLmNyb3NzaW5ncyk/cmVnaW9uYWwuY3Jvc3NpbmdzOltdLGtvcmRvbixkaXJlY3Rpb24pOwogICAgY29uc3Qgcm93cz1tZXJnZVRlbGVncmFtKGJhc2UsdGcuaXRlbXMsZGlyZWN0aW9uLHRnLnNvdXJjZXMpOwogICAgcmV0dXJuIHJlcy5zdGF0dXMoMjAwKS5qc29uKHsuLi5yZWdpb25hbCxnZW5lcmF0ZWRBdDpuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCksY3Jvc3NpbmdzOnNvcnQocm93cyksc291cmNlU3RhdHVzOnsuLi4ocmVnaW9uYWwuc291cmNlU3RhdHVzfHx7fSksa29yZG9uOmtvcmRvbi5zdGF0dXMsa29yZG9uRGV0YWlsczprb3Jkb25EZXRhaWxzKGtvcmRvbiksdGVsZWdyYW06dGcuc3RhdHVzLHRlbGVncmFtRGV0YWlsczp0Zy5tZXRhfSx2aWFSZWdpb25hbFVwc3RyZWFtOnRydWUsdGVsZWdyYW1Mb2NhbDp0cnVlfSkKICB9CiAgY29uc3QgZ2VuZXJhdGVkQXQ9bmV3IERhdGUoKS50b0lTT1N0cmluZygpOwogIGNvbnN0IFt0ZyxvZmZpY2lhbCxrb3Jkb25dPWF3YWl0IFByb21pc2UuYWxsKFtnZXRUZWxlZ3JhbSgpLGdldE9mZmljaWFsKGRpcmVjdGlvbiksZmV0Y2hLb3Jkb25MaXZlKGRpcmVjdGlvbildKTsKICBjb25zdCBhcGlLZXk9cHJvY2Vzcy5lbnYuTktEX0FQSV9LRVl8fHMocmVxLmhlYWRlcnM/LlsneC1ua2Qta2V5J10pOwogIGlmKCFhcGlLZXkpewogICAgY29uc3Qgbnc9YXdhaXQgc3VwcGxlbWVudE5ha29yZG9uaVdlYihbXSxkaXJlY3Rpb24pOwogICAgbGV0IHJvd3M9bWVyZ2VLb3Jkb24obncucm93cyxrb3Jkb24sZGlyZWN0aW9uKTsKICAgIHJvd3M9bWVyZ2VPZmZpY2lhbChyb3dzLG9mZmljaWFsLml0ZW1zLGRpcmVjdGlvbik7CiAgICByb3dzPW1lcmdlVGVsZWdyYW0ocm93cyx0Zy5pdGVtcyxkaXJlY3Rpb24sdGcuc291cmNlcyk7CiAgICByZXR1cm4gcmVzLnN0YXR1cygyMDApLmpzb24oe29rOnRydWUsZ2VuZXJhdGVkQXQsZGlyZWN0aW9uLGFwaVZlcnNpb246J3Y0JyxjYWNoZU1pbnV0ZXM6NSxjcm9zc2luZ3M6c29ydChyb3dzKSxzb3VyY2VTdGF0dXM6e25ha29yZG9uaTpudy5yb3dzLmxlbmd0aD8nY29ubmVjdGVkJzonbWlzc2luZ19rZXknLG5ha29yZG9uaURldGFpbHM6e21vZGU6bncucm93cy5sZW5ndGg/J3dlYl9mYWxsYmFjayc6J21pc3Npbmdfa2V5JyxhcGlDb3VudDowLHdlYkNvdW50Om53LndlYj8uY3Jvc3NpbmdzPy5sZW5ndGh8fDAsYWRkZWQ6bncuYWRkZWR9LGtvcmRvbjprb3Jkb24uc3RhdHVzLGtvcmRvbkRldGFpbHM6a29yZG9uRGV0YWlscyhrb3Jkb24pLG9mZmljaWFsOm9mZmljaWFsLnN0YXR1cyxjYW1lcmFzOidjb25maWd1cmVkJyx0ZWxlZ3JhbTp0Zy5zdGF0dXMsdGVsZWdyYW1EZXRhaWxzOnRnLm1ldGF9LGF0dHJpYnV0aW9uOidEYXRhIGJ5IG5ha29yZG9uaS5ldScsZmFpbHVyZXM6bncud2ViPy5mYWlsdXJlc3x8W119KQogIH0KICBjb25zdCBjaz1gJHthcGlLZXkuc2xpY2UoLTYpfToke2RpcmVjdGlvbn1gOwogIGxldCBua2Q9Y2FjaGUuZ2V0KGNrKSxmcm9tQ2FjaGU9dHJ1ZTsKICBpZighbmtkfHxEYXRlLm5vdygpLW5rZC50cz5UVEwpe25rZD17dHM6RGF0ZS5ub3coKSx2YWx1ZTphd2FpdCBnZXROa2QoYXBpS2V5LGRpcmVjdGlvbil9O2NhY2hlLnNldChjayxua2QpO2Zyb21DYWNoZT1mYWxzZX0KICBjb25zdCB4PW5rZC52YWx1ZTsKICBjb25zdCBudz1hd2FpdCBzdXBwbGVtZW50TmFrb3Jkb25pV2ViKHguY3Jvc3NpbmdzLGRpcmVjdGlvbik7CiAgbGV0IHJvd3M9bWVyZ2VLb3Jkb24obncucm93cyxrb3Jkb24sZGlyZWN0aW9uKTsKICByb3dzPW1lcmdlT2ZmaWNpYWwocm93cyxvZmZpY2lhbC5pdGVtcyxkaXJlY3Rpb24pOwogIHJvd3M9bWVyZ2VUZWxlZ3JhbShyb3dzLHRnLml0ZW1zLGRpcmVjdGlvbix0Zy5zb3VyY2VzKTsKICByZXR1cm4gcmVzLnN0YXR1cygyMDApLmpzb24oe29rOnRydWUsZ2VuZXJhdGVkQXQsZGlyZWN0aW9uLGFwaVZlcnNpb246J3Y0JyxjYWNoZU1pbnV0ZXM6NSxmcm9tQ2FjaGUsY3Jvc3NpbmdzOnNvcnQocm93cyksc291cmNlU3RhdHVzOntuYWtvcmRvbmk6bncucm93cy5sZW5ndGg/J2Nvbm5lY3RlZCc6KHguZmFpbHVyZXMubGVuZ3RoPydlcnJvcic6J2VtcHR5JyksbmFrb3Jkb25pRGV0YWlsczp7bW9kZTp4LmNyb3NzaW5ncy5sZW5ndGg/KG53LmFkZGVkPydhcGlfcGx1c193ZWInOidhcGknKToobncud2ViPy5jcm9zc2luZ3M/Lmxlbmd0aD8nd2ViX2ZhbGxiYWNrJzonZXJyb3InKSxhcGlDb3VudDp4LmNyb3NzaW5ncy5sZW5ndGgsd2ViQ291bnQ6bncud2ViPy5jcm9zc2luZ3M/Lmxlbmd0aHx8MCxhZGRlZDpudy5hZGRlZH0sa29yZG9uOmtvcmRvbi5zdGF0dXMsa29yZG9uRGV0YWlsczprb3Jkb25EZXRhaWxzKGtvcmRvbiksb2ZmaWNpYWw6b2ZmaWNpYWwuc3RhdHVzLGNhbWVyYXM6J2NvbmZpZ3VyZWQnLHRlbGVncmFtOnRnLnN0YXR1cyx0ZWxlZ3JhbURldGFpbHM6dGcubWV0YX0sYXR0cmlidXRpb246eC5hdHRyaWJ1dGlvbix1c2FnZTp4LnVzYWdlLGZhaWx1cmVzOlsuLi4oeC5mYWlsdXJlc3x8W10pLC4uLigobncud2ViPy5mYWlsdXJlcyl8fFtdKV19KQp9Cg==
         run: |
           python - <<'PY'
+          import base64, os
           from pathlib import Path
-
-          p = Path('api/aggregate.js')
-          s = p.read_text()
-          imp = "import {fetchNakordoniWeb} from './nakordoni-web.js';"
+          helper=base64.b64decode(os.environ['HELPER_B64']).decode()
+          handler=base64.b64decode(os.environ['HANDLER_B64']).decode()
+          p=Path('api/aggregate.js'); s=p.read_text()
+          imp="import {fetchNakordoniWeb} from './nakordoni-web.js';"
           if "from './kordon-live.js'" not in s:
               if imp not in s: raise SystemExit('aggregate import marker missing')
-              s = s.replace(imp, imp + "\nimport {fetchKordonLive} from './kordon-live.js';", 1)
-
-          marker = 'async function supplementNakordoniWeb(rows,direction){'
-          helper = r'''function mergeKordon(crossings,kordon,direction){
-  const out=Array.isArray(crossings)?crossings.map(x=>({...x,sources:[...(x.sources||[])]})):[];
-  if(direction!=='UA_EU'||!Array.isArray(kordon?.items))return out;
-  for(const item of kordon.items){
-    const q=Number(item?.queueCars);
-    if(!Number.isFinite(q)||q<0||item?.stale)continue;
-    let f=out.find(x=>rowMatches(x,item.name,'PL',[]));
-    if(!f){
-      f={id:`kordon-${keyName(item.name)}-${direction}`,ppid:null,name:item.name,country:'Польща',countryCode:'PL',direction,queueCars:null,waitMin:null,waitStatus:null,ageMin:item.ageMin??null,updatedAt:item.updatedAt||null,trend:'unknown',trendPercent:null,stale:false,confidence:'medium',sourceUrl:item.sourceUrl||'https://kordon.info/',sources:[]};
-      out.push(f)
-    }
-    const wasStale=Boolean(f.stale);
-    f.sources.push({source:'kordon_info',label:'Kordon.info · дані ДПСУ',queueCars:Math.round(q),updatedAt:item.updatedAt||null,ageMin:item.ageMin??null,sourceUrl:item.sourceUrl||'https://kordon.info/',note:`${Math.round(q)} авто · за даними ДПСУ через Kordon.info`,evidence:item.evidence||null});
-    f.queueCars=Math.round(q);
-    f.queueSource='kordon_info';
-    f.queueAgeMin=item.ageMin??null;
-    if(wasStale&&f.waitMin!=null){f.waitMin=null;f.baseWaitMin=null}
-    if(item.ageMin!=null&&(f.ageMin==null||Number(item.ageMin)<Number(f.ageMin)))f.ageMin=Number(item.ageMin);
-    if(item.updatedAt)f.updatedAt=item.updatedAt;
-    f.stale=false;
-    f.confidence=f.confidence==='high'?'high':'medium';
-    f.camera=f.camera||cameraFor(f)
-  }
-  return out
-}
-function kordonDetails(kordon){return{count:Array.isArray(kordon?.items)?kordon.items.length:0,ageMin:kordon?.ageMin??null,upstreamClock:kordon?.upstreamClock??null,attribution:kordon?.attribution||null,error:kordon?.error||null}}
-'''
+              s=s.replace(imp,imp+"\nimport {fetchKordonLive} from './kordon-live.js';",1)
+          marker='async function supplementNakordoniWeb(rows,direction){'
           if 'function mergeKordon(' not in s:
               if marker not in s: raise SystemExit('aggregate supplement marker missing')
-              s = s.replace(marker, helper + marker, 1)
-
-          start = s.find('export default async function handler(req,res){')
-          if start < 0: raise SystemExit('handler marker missing')
-          handler = r'''export default async function handler(req,res){
-  if(req.method!=='GET')return res.status(405).json({ok:false,error:'method_not_allowed'});
-  const direction=req.query?.direction==='EU_UA'?'EU_UA':'UA_EU';
-  const regional=await fetchRegionalUpstream(direction);
-  if(regional){
-    const [tg,kordon]=await Promise.all([getTelegram(),fetchKordonLive(direction)]);
-    let base=mergeKordon(Array.isArray(regional.crossings)?regional.crossings:[],kordon,direction);
-    const rows=mergeTelegram(base,tg.items,direction,tg.sources);
-    return res.status(200).json({...regional,generatedAt:new Date().toISOString(),crossings:sort(rows),sourceStatus:{...(regional.sourceStatus||{}),kordon:kordon.status,kordonDetails:kordonDetails(kordon),telegram:tg.status,telegramDetails:tg.meta},viaRegionalUpstream:true,telegramLocal:true})
-  }
-  const generatedAt=new Date().toISOString();
-  const [tg,official,kordon]=await Promise.all([getTelegram(),getOfficial(direction),fetchKordonLive(direction)]);
-  const apiKey=process.env.NKD_API_KEY||s(req.headers?.['x-nkd-key']);
-  if(!apiKey){
-    const nw=await supplementNakordoniWeb([],direction);
-    let rows=mergeKordon(nw.rows,kordon,direction);
-    rows=mergeOfficial(rows,official.items,direction);
-    rows=mergeTelegram(rows,tg.items,direction,tg.sources);
-    return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})
-  }
-  const ck=`${apiKey.slice(-6)}:${direction}`;
-  let nkd=cache.get(ck),fromCache=true;
-  if(!nkd||Date.now()-nkd.ts>TTL){nkd={ts:Date.now(),value:await getNkd(apiKey,direction)};cache.set(ck,nkd);fromCache=false}
-  const x=nkd.value;
-  const nw=await supplementNakordoniWeb(x.crossings,direction);
-  let rows=mergeKordon(nw.rows,kordon,direction);
-  rows=mergeOfficial(rows,official.items,direction);
-  rows=mergeTelegram(rows,tg.items,direction,tg.sources);
-  return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nw.added?'api_plus_web':'api'):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})
-}
-'''
-          s = s[:start] + handler
+              s=s.replace(marker,helper+marker,1)
+          start=s.find('export default async function handler(req,res){')
+          if start<0: raise SystemExit('handler marker missing')
+          p.write_text(s[:start]+handler)
+          p=Path('server.source.js'); s=p.read_text()
+          old="nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram"
+          new="nakordoni:payload?.sourceStatus?.nakordoni,kordon:payload?.sourceStatus?.kordon,kordonCount:payload?.sourceStatus?.kordonDetails?.count,telegram:payload?.sourceStatus?.telegram"
+          if old in s: s=s.replace(old,new,1)
+          elif 'kordonCount:payload?.sourceStatus?.kordonDetails?.count' not in s: raise SystemExit('server diagnostic marker missing')
           p.write_text(s)
-
-          p = Path('server.source.js')
-          s = p.read_text()
-          old = "nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram"
-          new = "nakordoni:payload?.sourceStatus?.nakordoni,kordon:payload?.sourceStatus?.kordon,kordonCount:payload?.sourceStatus?.kordonDetails?.count,telegram:payload?.sourceStatus?.telegram"
-          if old not in s: raise SystemExit('server diagnostic marker missing')
-          p.write_text(s.replace(old,new,1))
-
-          p = Path('public/app.js')
-          s = p.read_text()
-          old = "const nk=data.sourceStatus?.nakordoni,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()"
-          new = "const nk=data.sourceStatus?.nakordoni,kd=data.sourceStatus?.kordon,kdd=data.sourceStatus?.kordonDetails,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;const kt=kd==='connected'?`✓${kdd?.count?` ${kdd.count}`:''}`:kd==='not_applicable'?'—':kd==='stale_cache'?'кеш':kd||'—';$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Kordon/ДПСУ: ${kt} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()"
-          if old not in s: raise SystemExit('app source status marker missing')
-          p.write_text(s.replace(old,new,1))
+          p=Path('public/app.js'); s=p.read_text()
+          old="const nk=data.sourceStatus?.nakordoni,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()"
+          new="const nk=data.sourceStatus?.nakordoni,kd=data.sourceStatus?.kordon,kdd=data.sourceStatus?.kordonDetails,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;const kt=kd==='connected'?`✓${kdd?.count?` ${kdd.count}`:''}`:kd==='not_applicable'?'—':kd==='stale_cache'?'кеш':kd||'—';$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Kordon/ДПСУ: ${kt} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()"
+          if old in s: s=s.replace(old,new,1)
+          elif 'Kordon/ДПСУ:' not in s: raise SystemExit('app source status marker missing')
+          p.write_text(s)
           PY
           node --check api/kordon-live.js
           node --check api/aggregate.js
@@ -131,9 +72,7 @@ function kordonDetails(kordon){return{count:Array.isArray(kordon?.items)?kordon.
       - name: Build production bundle
         run: |
           npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node20 --minify-whitespace --outfile=server.bundle.cjs
-          cat > server.js <<'EOF'
-          import './server.bundle.cjs';
-          EOF
+          printf "%s\n" "import './server.bundle.cjs';" > server.js
           node --check server.js
           node --check server.bundle.cjs
       - name: Commit integration and remove one-shot
