@@ -101,8 +101,14 @@ export function parseWaitMin(text) {
   if (match) return Number(match[1]) * 60 + Number(match[2] || 0);
   match = value.match(/(?:^|[^\d])(\d{1,3})\s*(?:хв(?:илин(?:а|и)?|илини)?|мин(?:ут(?:а|ы)?|ути)?|min)(?=$|[^\p{L}\p{N}])/iu);
   if (match) return Number(match[1]);
-  match = value.match(/(?:очікуван\w*|чекал\w*|стоял\w*|пройшл\w*|проход\w*|перетнул\w*|черга\w*|очеред\w*)[^\n]{0,35}?(\d{1,2})[:.](\d{2})\b/i);
-  if (match) return Number(match[1]) * 60 + Number(match[2]);
+  const clocks = [...value.matchAll(/(?:^|[^\d])([01]?\d|2[0-3])[:.]([0-5]\d)(?=$|[^\d])/g)].map(m => Number(m[1]) * 60 + Number(m[2]));
+  const hasStart = /(під.?їх|приїх|прибул|стал|заїх|подъех|приех|прибыл|встал)/i.test(value);
+  const hasEnd = /(пройш|проїх|перетнул|виїх|закінчил|прошл|проех|пересек|выех)/i.test(value);
+  if (clocks.length >= 2 && hasStart && hasEnd) {
+    let elapsed = clocks[clocks.length - 1] - clocks[0];
+    if (elapsed < 0) elapsed += 24 * 60;
+    if (elapsed > 0 && elapsed <= 12 * 60) return elapsed;
+  }
   return null;
 }
 
