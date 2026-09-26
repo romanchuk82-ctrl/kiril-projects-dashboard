@@ -1,0 +1,12 @@
+name: Check tgAtlas quota
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/check-tgatlas-quota.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS --max-time 30 'https://border-monitor-ua.onrender.com/snapshot' | jq -c '{mode,status,quota,connected:([.sources[]|select(.status=="connected")]|length),errors:([.sources[]|select(.status=="error")]|length)}'
