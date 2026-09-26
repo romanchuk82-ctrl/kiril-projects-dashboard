@@ -1,0 +1,87 @@
+name: Derive Telegram peer ids
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/derive-telegram-peer-ids.yml']
+permissions:
+  contents: write
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Derive peer ids from TgSearch public catalog
+        shell: python {0}
+        run: |
+          import html, re, time, urllib.parse, urllib.request
+          from pathlib import Path
+
+          usernames = [
+            'Krakivets','shegunimeduka','rawahrebenne','ustylug','ugryniv','hryshiv','yagodyn','smilnutsa','nyzhankovychi',
+            'maluibereznui','uzhorodqueue','MaliSelmentsi','parubne','solotkino','diakove','diakivchi','krasnoyilsk','bilacerkvasigetumarmatiei',
+            'lugankabereg','chopzahon','viloktisabech','dzvinkovelonya','kosunopunkt','Mohylivcheckpoint','palankaudobne','Rossoshany',
+            'Mamalyhacheckpoint','sokiryany','Bronnitsacheckpoint',
+            'ukrainianattheborder','zahidwtf_official','uzhgorod_21','UADrivers'
+          ]
+          C = 218_248_855
+          out = {}
+          missing = []
+          opener = urllib.request.build_opener()
+          opener.addheaders=[('User-Agent','Mozilla/5.0')]
+          card_re = re.compile(r'<div class="channel-card">.*?</div></div></div>', re.I|re.S)
+          id_re = re.compile(r'href="/channel/(\d+)"', re.I)
+          user_re = re.compile(r'<li>@([^<]+)</li>', re.I)
+
+          for username in usernames:
+            url='https://tgsearch.org/search?'+urllib.parse.urlencode({'query':username})
+            try:
+              with opener.open(url, timeout=30) as r:
+                body=r.read().decode('utf-8','replace')
+            except Exception as e:
+              print(f'ERROR {username}: {type(e).__name__}')
+              missing.append(username); continue
+            found=None
+            for card in card_re.findall(body):
+              im=id_re.search(card); um=user_re.search(card)
+              if im and um and html.unescape(um.group(1)).lower()==username.lower():
+                internal=int(im.group(1)); numerator=internal-C
+                if numerator>0 and numerator%11==0:
+                  found=numerator//11
+                break
+            if not found:
+              # fallback: exact username may occur after the channel link in minified HTML
+              pattern=re.compile(r'href="/channel/(\d+)"[^>]*>.*?</a>.*?<li>@'+re.escape(username)+r'</li>', re.I|re.S)
+              m=pattern.search(body)
+              if m:
+                internal=int(m.group(1)); numerator=internal-C
+                if numerator>0 and numerator%11==0: found=numerator//11
+            if found:
+              out[username]=found
+              print(f'OK {username}={found}')
+            else:
+              print(f'MISSING {username}')
+              missing.append(username)
+            time.sleep(.25)
+
+          checkpoints=set(usernames[:29])
+          found_cp=sum(1 for u in checkpoints if u in out)
+          print(f'SUMMARY checkpoint={found_cp}/29 total={len(out)}/33 missing={missing}')
+          lines=['// Generated from TgSearch public catalog. Do not edit by hand.','export const TELEGRAM_PEER_IDS = {']
+          for username in usernames:
+            if username in out:
+              lines.append(f"  {username!r}: {out[username]},")
+          lines.append('};')
+          Path('api/tg-peer-ids.js').write_text('\n'.join(lines)+'\n')
+          if found_cp < 29:
+            raise SystemExit(f'Only {found_cp}/29 checkpoint IDs resolved')
+      - name: Commit peer id table
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/tg-peer-ids.js
+          git commit -m "Pin Telegram peer IDs for border chats"
+          git push origin HEAD:border-monitor
