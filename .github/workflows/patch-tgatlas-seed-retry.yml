@@ -1,0 +1,38 @@
+name: Patch tgAtlas seed retry
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/patch-tgatlas-seed-retry.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Add retry after username seeding
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('api/telegram.js')
+          s=p.read_text()
+          old="""    const peer = await resolvePeer(source);\n    const body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });\n"""
+          new="""    let peer = await resolvePeer(source);\n    let body;\n    try {\n      body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });\n    } catch (error) {\n      if (error?.code !== 'RESOURCE_UNAVAILABLE') throw error;\n      peerCache.delete(key);\n      await new Promise(resolve => setTimeout(resolve, 900));\n      peer = await resolvePeer(source);\n      await new Promise(resolve => setTimeout(resolve, 600));\n      body = await apiGet(`/v1/peers/${peer.id}/history`, { limit: MESSAGE_LIMIT });\n    }\n"""
+          if old not in s:
+              raise SystemExit('target snippet not found')
+          p.write_text(s.replace(old,new,1))
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/telegram.js
+          git commit -m "Retry tgAtlas history after peer seed"
+          git push origin HEAD:border-monitor
