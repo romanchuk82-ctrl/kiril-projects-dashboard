@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import aggregateHandler from './api/aggregate.js';
 import statusHandler from './api/status.js';
+import telegramHandler from './api/telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, 'public');
@@ -61,7 +62,7 @@ async function startupDiag() {
       await aggregateHandler(req,res);
       const official=payload?.sourceStatus?.official||{};
       const officialSources=(payload?.crossings||[]).flatMap(x=>x.sources||[]).filter(x=>String(x.source||'').startsWith('official_'));
-      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,officialLabels:[...new Set(officialSources.map(x=>x.label))],cameras:(payload?.crossings||[]).filter(x=>x.camera).length}));
+      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,officialLabels:[...new Set(officialSources.map(x=>x.label))],cameras:(payload?.crossings||[]).filter(x=>x.camera).length}));
     } catch(e) { console.log('[border-selftest]',JSON.stringify({direction,error:String(e?.message||e)})); }
   }
 }
@@ -73,6 +74,7 @@ http.createServer(async (req, res) => {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       return res.end(JSON.stringify({ ok: true, service: 'border-monitor-ua' }));
     }
+    if (url.pathname === '/snapshot' || url.pathname === '/api/telegram') return runApi(telegramHandler, req, res, url);
     if (url.pathname === '/api/aggregate') return runApi(aggregateHandler, req, res, url);
     if (url.pathname === '/api/status') return runApi(statusHandler, req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') return serveStatic(res, 'index.html');
