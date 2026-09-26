@@ -1,1 +1,1 @@
-bundle trigger after tgAtlas peer seeding retry
+bundle trigger after tgAtlas rate-limit hardening
