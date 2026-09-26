@@ -3,7 +3,16 @@
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "scripts": {"start": "node server.js"},
-  "engines": {"node": ">=20"},
-  "dependencies": {"telegram": "2.26.22"}
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check api/telegram.js && node --check api/telegram-auth.js && node --check api/aggregate.js && node --check public/app.js && node --check public/telegram-setup.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "teleproto": "1.229.0"
+  }
 }

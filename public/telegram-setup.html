@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>Підключення Telegram · Border Monitor UA</title>
+  <link rel="stylesheet" href="/telegram-setup.css" />
+</head>
+<body>
+  <main class="setup-shell">
+    <section class="setup-card" aria-labelledby="setupTitle">
+      <div class="brand">Border Monitor UA</div>
+      <h1 id="setupTitle">Безпечне підключення Telegram</h1>
+      <p class="intro">Номер телефону й код входу не потрібні. Підтвердження відбувається в офіційному застосунку Telegram.</p>
+
+      <div id="statusBox" class="status-box" role="status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="statusText">Готую захищений QR-код…</span>
+      </div>
+
+      <section id="qrPanel" class="qr-panel hidden" aria-label="QR-код входу Telegram">
+        <img id="qrImage" alt="QR-код для підтвердження входу в Telegram" width="320" height="320" />
+        <ol>
+          <li>Відкрий Telegram на телефоні.</li>
+          <li>Налаштування → Пристрої → Підключити пристрій.</li>
+          <li>Відскануй QR-код і підтвердь вхід.</li>
+        </ol>
+        <a id="telegramLink" class="primary-action" href="#">Підтвердити в Telegram</a>
+        <p class="hint">Кнопка зручна, якщо ця сторінка відкрита на тому самому телефоні. QR-код оновлюється автоматично.</p>
+      </section>
+
+      <form id="passwordForm" class="password-panel hidden" autocomplete="off">
+        <label for="passwordInput">Пароль двоетапної перевірки Telegram</label>
+        <p id="passwordHint" class="hint"></p>
+        <input id="passwordInput" name="password" type="password" autocomplete="off" maxlength="256" required />
+        <button class="primary-action" type="submit">Підтвердити пароль</button>
+        <p class="privacy-note">Пароль обробляється лише в оперативній пам’яті сервісу для входу в Telegram і не записується у файли, логи чи базу даних.</p>
+      </form>
+
+      <section id="successPanel" class="success-panel hidden" aria-live="polite">
+        <div class="success-icon" aria-hidden="true">✓</div>
+        <h2>Telegram підтверджено</h2>
+        <p>Сесію підготовлено до захищеного збереження в Render. Цю сторінку можна залишити відкритою до завершення налаштування.</p>
+      </section>
+
+      <section id="errorPanel" class="error-panel hidden" role="alert">
+        <h2>Не вдалося завершити підключення</h2>
+        <p id="errorText"></p>
+        <button id="retryBtn" class="secondary-action" type="button">Спробувати ще раз</button>
+      </section>
+
+      <p class="security-note">Сесія Telegram не показується на екрані й не зберігається в браузері.</p>
+    </section>
+  </main>
+  <script type="module" src="/telegram-setup.js"></script>
+</body>
+</html>
