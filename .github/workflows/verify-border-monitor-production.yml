@@ -1,0 +1,51 @@
+name: Verify Border Monitor production
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/verify-border-monitor-production.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public production endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          fetch() {
+            local url="$1" out="$2"
+            for i in $(seq 1 12); do
+              if curl --connect-timeout 10 --max-time 45 -fsS "$url" -o "$out"; then return 0; fi
+              sleep 5
+            done
+            return 1
+          }
+          fetch "$base/health" /tmp/health.json
+          fetch "$base/api/status" /tmp/status.json
+          fetch "$base/snapshot?direction=UA_EU" /tmp/snapshot-uaeu.json
+          fetch "$base/snapshot?direction=EU_UA" /tmp/snapshot-euua.json
+          fetch "$base/api/aggregate?direction=UA_EU" /tmp/aggregate-uaeu.json
+          fetch "$base/api/aggregate?direction=EU_UA" /tmp/aggregate-euua.json
+
+          echo 'HEALTH'
+          jq -c '{ok,service}' /tmp/health.json
+          echo 'STATUS'
+          jq -c . /tmp/status.json
+          echo 'SNAPSHOT UA_EU'
+          jq -c '{ok,status,sources,connected,checkpointChats,items:(.items|length),freshItems:([.items[]?|select(.fresh==true)]|length)}' /tmp/snapshot-uaeu.json
+          echo 'SNAPSHOT EU_UA'
+          jq -c '{ok,status,sources,connected,checkpointChats,items:(.items|length),freshItems:([.items[]?|select(.fresh==true)]|length)}' /tmp/snapshot-euua.json
+          echo 'AGGREGATE UA_EU'
+          jq -c '{ok,direction,rows:(.crossings|length),sourceStatus,cameras:([.crossings[]?|select(.camera)]|length)}' /tmp/aggregate-uaeu.json
+          echo 'AGGREGATE EU_UA'
+          jq -c '{ok,direction,rows:(.crossings|length),sourceStatus,cameras:([.crossings[]?|select(.camera)]|length)}' /tmp/aggregate-euua.json
+
+          jq -e '.ok == true and .service == "border-monitor-ua"' /tmp/health.json >/dev/null
+          jq -e '.crossings | type == "array"' /tmp/aggregate-uaeu.json >/dev/null
+          jq -e '.crossings | type == "array"' /tmp/aggregate-euua.json >/dev/null
