@@ -1,0 +1,87 @@
+name: Build Border Monitor self-contained bundle
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/bundle-border-monitor.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout border-monitor
+        uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Preserve source of truth
+        run: cp server.js server.source.js
+
+      - name: Build self-contained CommonJS bundle
+        run: npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node20 --minify-whitespace --outfile=server.bundle.cjs
+
+      - name: Write tiny runtime bootstrap
+        shell: bash
+        run: |
+          cat > server.js <<'EOF'
+          import './server.bundle.cjs';
+          EOF
+
+      - name: Verify syntax
+        run: |
+          node --check server.js
+          node --check server.bundle.cjs
+
+      - name: Verify bundle starts without node_modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          cp server.js server.bundle.cjs "$tmp/"
+          cp -R public "$tmp/public"
+          (
+            cd "$tmp"
+            PORT=17891 node server.js >server.log 2>&1 &
+            pid=$!
+            trap 'kill $pid 2>/dev/null || true' EXIT
+            ok=0
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:17891/api/status >/tmp/border-status.json 2>/dev/null; then
+                ok=1
+                break
+              fi
+              sleep 1
+            done
+            test "$ok" = 1
+            grep -q '"ok":true' /tmp/border-status.json
+            kill $pid 2>/dev/null || true
+            wait $pid 2>/dev/null || true
+          )
+
+      - name: Commit generated production bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server.js server.source.js server.bundle.cjs
+          if git diff --cached --quiet; then
+            echo "Bundle already current"
+            exit 0
+          fi
+          git commit -m "Bundle Telegram runtime for Render [bundle]"
+          git push origin HEAD:border-monitor
