@@ -51,26 +51,6 @@ async function serveStatic(res, filePath) {
   }
 }
 
-async function logUpstreamStatus() {
-  try {
-    let payload = null;
-    const fakeReq = { method: 'GET', query: { direction: 'UA_EU' } };
-    const fakeRes = {
-      code: 200,
-      status(c) { this.code = c; return this; },
-      json(body) { payload = body; return this; }
-    };
-    await aggregateHandler(fakeReq, fakeRes);
-    console.log('[border-region-check]', JSON.stringify({
-      sourceStatus: payload?.sourceStatus || null,
-      crossingCount: Array.isArray(payload?.crossings) ? payload.crossings.length : 0,
-      failures: Array.isArray(payload?.failures) ? payload.failures : []
-    }));
-  } catch (e) {
-    console.log('[border-region-check]', JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
-  }
-}
-
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -92,7 +72,4 @@ http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ ok: false, error: 'internal_error' }));
   }
-}).listen(port, '0.0.0.0', () => {
-  console.log(`Border Monitor UA listening on ${port}`);
-  setTimeout(logUpstreamStatus, 500);
-});
+}).listen(port, '0.0.0.0', () => console.log(`Border Monitor UA listening on ${port}`));
