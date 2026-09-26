@@ -1,0 +1,105 @@
+name: One-shot Nakordoni web fallback
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - .github/workflows/one-shot-nakordoni-web-fallback.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Wire fallback and add cache
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('api/nakordoni-web.js')
+          s = p.read_text()
+          marker = "function decodeHtml(value) {"
+          cache = "const WEB_TTL_MS = 2 * 60 * 1000;\nconst webCache = new Map();\n\n"
+          if 'const WEB_TTL_MS' not in s:
+              if marker not in s: raise SystemExit('nakordoni-web cache marker missing')
+              s = s.replace(marker, cache + marker, 1)
+          old = "export async function fetchNakordoniWeb(direction = 'UA_EU') {\n  const defs = PL_PAGES[direction] || PL_PAGES.UA_EU;"
+          new = "export async function fetchNakordoniWeb(direction = 'UA_EU') {\n  const key = direction === 'EU_UA' ? 'EU_UA' : 'UA_EU';\n  const cached = webCache.get(key);\n  if (cached && Date.now() - cached.ts < WEB_TTL_MS) return cached.value;\n  const defs = PL_PAGES[key] || PL_PAGES.UA_EU;"
+          if old not in s: raise SystemExit('fetchNakordoniWeb marker missing')
+          s = s.replace(old, new, 1)
+          old = "  return { crossings: out, failures, source: 'nakordoni_web' };\n}"
+          new = "  const value = { crossings: out, failures, source: 'nakordoni_web', cacheMinutes: WEB_TTL_MS / 60000 };\n  webCache.set(key, { ts: Date.now(), value });\n  return value;\n}"
+          if old not in s: raise SystemExit('nakordoni-web return marker missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          p = Path('api/aggregate.js')
+          s = p.read_text()
+          imp = "import {getTelegramSnapshot} from './telegram.js';"
+          if "from './nakordoni-web.js'" not in s:
+              if imp not in s: raise SystemExit('aggregate import marker missing')
+              s = s.replace(imp, imp + "\nimport {fetchNakordoniWeb} from './nakordoni-web.js';", 1)
+
+          marker = "function sort(rows){return[...rows].sort"
+          helper = r'''async function supplementNakordoniWeb(rows,direction){
+  const base=Array.isArray(rows)?rows.map(x=>({...x,sources:[...(x.sources||[])]})):[];
+  const usablePl=base.filter(x=>x.countryCode==='PL'&&!x.stale&&(x.waitMin!=null||x.queueCars!=null)).length;
+  if(usablePl>=8)return{rows:base,web:null,added:0};
+  let web;
+  try{web=await fetchNakordoniWeb(direction)}catch(e){return{rows:base,web:{crossings:[],failures:[{error:String(e?.message||e)}]},added:0}}
+  let added=0;
+  for(const w of web.crossings||[]){
+    const i=base.findIndex(x=>x.countryCode==='PL'&&rowMatches(x,w.name,'PL',[]));
+    if(i<0){base.push(w);added++;continue}
+    const cur=base[i];
+    const curUsable=!cur.stale&&(cur.waitMin!=null||cur.queueCars!=null);
+    const webUsable=!w.stale&&(w.waitMin!=null||w.queueCars!=null);
+    if(!curUsable&&webUsable){base[i]={...cur,...w,id:cur.id||w.id,sources:[...(cur.sources||[]),...(w.sources||[])]};added++}
+    else if((cur.sources||[]).every(z=>z.source!=='nakordoni')&&(w.sources||[]).length){base[i]={...cur,sources:[...(cur.sources||[]),...(w.sources||[])]}}
+  }
+  return{rows:base,web,added}
+}
+'''
+          if 'async function supplementNakordoniWeb' not in s:
+              if marker not in s: raise SystemExit('aggregate helper marker missing')
+              s = s.replace(marker, helper + marker, 1)
+
+          old = "if(!apiKey){const rows=mergeTelegram(mergeOfficial([],official.items,direction),tg.items,direction,tg.sources);return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,crossings:sort(rows),sourceStatus:{nakordoni:'missing_key',official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu'})}"
+          new = "if(!apiKey){const nw=await supplementNakordoniWeb([],direction);const rows=mergeTelegram(mergeOfficial(nw.rows,official.items,direction),tg.items,direction,tg.sources);return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added},official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})}"
+          if old not in s: raise SystemExit('aggregate no-key marker missing')
+          s = s.replace(old, new, 1)
+
+          old = "const x=nkd.value;let rows=mergeOfficial(x.crossings,official.items,direction);rows=mergeTelegram(rows,tg.items,direction,tg.sources);return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:x.crossings.length?'connected':(x.failures.length?'error':'empty'),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:x.failures})}"
+          new = "const x=nkd.value;const nw=await supplementNakordoniWeb(x.crossings,direction);let rows=mergeOfficial(nw.rows,official.items,direction);rows=mergeTelegram(rows,tg.items,direction,tg.sources);return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nw.added?'api_plus_web':'api'):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added},official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})}"
+          if old not in s: raise SystemExit('aggregate result marker missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          node --check api/nakordoni-web.js
+          node --check api/aggregate.js
+      - name: Probe public Nakordoni pages
+        run: |
+          node --input-type=module - <<'NODE'
+          import {fetchNakordoniWeb} from './api/nakordoni-web.js';
+          const result = await fetchNakordoniWeb('UA_EU');
+          const live = result.crossings.filter(x => !x.stale && (x.waitMin != null || x.queueCars != null));
+          console.log(JSON.stringify({rows: result.crossings.length, live: live.length, failures: result.failures.length, sample: live.slice(0,4).map(x=>({name:x.name,waitMin:x.waitMin,queueCars:x.queueCars,ageMin:x.ageMin}))}, null, 2));
+          if (result.crossings.length < 6) process.exit(1);
+          NODE
+      - name: Commit patch and remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-nakordoni-web-fallback.yml
+          git add api/nakordoni-web.js api/aggregate.js
+          git commit -m "Restore Nakordoni via public-page fallback"
+          git push origin HEAD:border-monitor
