@@ -1,0 +1,46 @@
+name: Verify Poland Telegram v4 production
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/verify-poland-telegram-v4-production.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify live Poland Telegram
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://border-monitor-ua.onrender.com'
+          curl -fsS --max-time 30 "$base/health" | jq -e '.ok==true' >/dev/null
+          curl -fsS --max-time 30 "$base/app.js" -o /tmp/app.js
+          grep -q 'лише людський звіт' /tmp/app.js
+          grep -q 'Telegram повідомляє фактичний час проходження' /tmp/app.js
+
+          chats=(Krakivets shegunimeduka rawahrebenne ustylug ugryniv hryshiv yagodyn smilnutsa nyzhankovychi)
+          for chat in "${chats[@]}"; do
+            curl -fsS --max-time 70 "$base/snapshot?username=$chat&refresh=1" -o "/tmp/$chat.json"
+            jq -e --arg c "$chat" 'any(.sources[]; ((.channel|ascii_downcase)==($c|ascii_downcase)) and .status=="connected")' "/tmp/$chat.json" >/dev/null
+            sleep 0.35
+          done
+
+          echo 'KRAKIVETS_ELAPSED'
+          jq -c '[.items[]|select(.source_channel=="Krakivets" and (.note|contains("16:30")) and (.note|contains("21:15")))|{direction,wait_min,queue_cars,age_min,note,message_id}]' /tmp/Krakivets.json
+          jq -e '[.items[]|select(.source_channel=="Krakivets" and (.note|contains("16:30")) and (.note|contains("21:15")) and .wait_min==285)]|length>=1' /tmp/Krakivets.json >/dev/null
+
+          for dir in UA_EU EU_UA; do
+            curl -fsS --max-time 90 "$base/api/aggregate?direction=$dir" -o "/tmp/$dir.json"
+            echo "POLAND_$dir"
+            jq -c --arg dir "$dir" '{direction:$dir,rows:([.crossings[]|select(.countryCode=="PL")]|length),telegramRows:([.crossings[]|select(.countryCode=="PL" and ([.sources[]?|select(.source=="telegram")]|length)>0)]|length),telegramMessages:([.crossings[]|select(.countryCode=="PL")|.sources[]?|select(.source=="telegram")]|length),withBaseTime:([.crossings[]|select(.countryCode=="PL" and .baseWaitMin!=null)]|length),reliable:([.crossings[]|select(.countryCode=="PL" and .timeReliable==true)]|length)}' "/tmp/$dir.json"
+            jq -e '[.crossings[]|select(.countryCode=="PL")|.sources[]?|select(.source=="telegram")]|length>0' "/tmp/$dir.json" >/dev/null
+          done
+
+          echo 'HRYSHIV_DEDUPE'
+          jq -c '{rows:[.crossings[]|select((.telegramChat.channel?//""|ascii_downcase)=="hryshiv")|{id,name,waitMin,baseWaitMin,humanReports,timeReliability,timeReliable,telegramQueueCars,tg:([.sources[]?|select(.source=="telegram")]|length)}]}' /tmp/EU_UA.json
+          jq -e '[.crossings[]|select((.telegramChat.channel?//""|ascii_downcase)=="hryshiv")]|length==1' /tmp/EU_UA.json >/dev/null
+          jq -e '[.crossings[]|select((.telegramChat.channel?//""|ascii_downcase)=="hryshiv")|.sources[]?|select(.source=="telegram")]|length>0' /tmp/EU_UA.json >/dev/null
+
+          echo 'SAMPLES'
+          jq -c '[.crossings[]|select(.countryCode=="PL" and ([.sources[]?|select(.source=="telegram")]|length)>0)|{name,waitMin,baseWaitMin,timeReliability,timeReliable,telegramQueueCars,telegramWaitMin,telegramFreshReports,tg:[.sources[]|select(.source=="telegram")|{value,queueCars,ageMin,note,sourceUrl}]}]|.[0:8]' /tmp/EU_UA.json
