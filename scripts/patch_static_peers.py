@@ -1,0 +1,40 @@
+from pathlib import Path
+import re
+
+IDS = {
+    'Krakivets':1561698401,'shegunimeduka':1749456888,'rawahrebenne':1684314020,'ustylug':1664739209,'ugryniv':1782023696,'hryshiv':1713079377,'yagodyn':1681870274,'smilnutsa':1669374249,'nyzhankovychi':2377629189,
+    'maluibereznui':1784524649,'uzhorodqueue':1767036280,'MaliSelmentsi':1596646776,'parubne':1873120038,'solotkino':1739833078,'diakove':1741931504,'diakivchi':1830834577,'krasnoyilsk':1539991687,'bilacerkvasigetumarmatiei':4361955950,
+    'lugankabereg':1656001875,'chopzahon':1481395430,'viloktisabech':1770808982,'dzvinkovelonya':1661124024,'kosunopunkt':1532406932,
+    'Mohylivcheckpoint':1765698625,'palankaudobne':2247255178,'Rossoshany':1639876515,'Mamalyhacheckpoint':1741076173,'sokiryany':1553828806,'Bronnitsacheckpoint':1415316943,
+    'ukrainianattheborder':1745721987,'zahidwtf_official':1410990532,'uzhgorod_21':1687563086,'UADrivers':1368206617,
+}
+
+p = Path('api/telegram.js')
+s = p.read_text()
+for username, peer_id in IDS.items():
+    pattern = r"\{ username: '" + re.escape(username) + r"',(?: peerId: \d+,)?"
+    replacement = "{ username: '%s', peerId: %d," % (username, peer_id)
+    s, count = re.subn(pattern, replacement, s, count=1)
+    if count != 1:
+        raise SystemExit(f'source not found: {username}')
+
+old = """async function resolvePeer(source) {
+  const cached = peerCache.get(source.username.toLowerCase());
+  if (cached) return cached;
+  const body = await apiGet(`/v1/usernames/${encodeURIComponent(source.username)}`);"""
+new = """async function resolvePeer(source) {
+  const cacheKey = source.username.toLowerCase();
+  const cached = peerCache.get(cacheKey);
+  if (cached) return cached;
+  const staticId = Number(source.peerId);
+  if (Number.isSafeInteger(staticId) && staticId > 0) {
+    const value = { id: staticId, title: source.label, static: true };
+    peerCache.set(cacheKey, value);
+    return value;
+  }
+  const body = await apiGet(`/v1/usernames/${encodeURIComponent(source.username)}`);"""
+if old not in s:
+    raise SystemExit('resolvePeer target not found')
+s = s.replace(old, new, 1)
+p.write_text(s)
+print(f'embedded {len(IDS)} stable peer IDs')
