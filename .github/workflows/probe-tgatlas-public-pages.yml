@@ -1,0 +1,25 @@
+name: Probe tgAtlas public pages for peer ids
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-tgatlas-public-pages.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect public index pages
+        shell: bash
+        run: |
+          set -u
+          declare -A ids=( [hryshiv]=1713079377 [Krakivets]=1561698401 [shegunimeduka]=1749456888 )
+          for chat in hryshiv Krakivets shegunimeduka; do
+            f="/tmp/$chat.html"
+            url="https://www.tgatlas.org/channel/$chat"
+            code=$(curl -L --connect-timeout 10 --max-time 30 -A 'Mozilla/5.0' -sS -o "$f" -w '%{http_code}' "$url" || true)
+            echo "===== $chat expected=${ids[$chat]} http=$code bytes=$(wc -c < "$f" 2>/dev/null || echo 0) ====="
+            grep -n -E "${ids[$chat]}|-100${ids[$chat]}|peer.?id|channel.?id|telegram.?id|__NEXT_DATA__|application/json" "$f" 2>/dev/null | head -80 || true
+            echo 'numbers:'
+            grep -oE '[0-9]{9,13}' "$f" 2>/dev/null | sort -u | head -80 || true
+          done
