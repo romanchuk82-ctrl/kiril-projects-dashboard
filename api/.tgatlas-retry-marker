@@ -1,1 +1,1 @@
-bundle trigger after tgAtlas rate-limit hardening
+bundle trigger after tgAtlas quota telemetry
