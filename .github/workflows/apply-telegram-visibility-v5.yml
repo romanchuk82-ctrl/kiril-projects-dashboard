@@ -1,0 +1,32 @@
+name: Apply Telegram visibility v5
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-telegram-visibility-v5.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply UI visibility patch
+        run: python scripts/enhance_telegram_visibility_v5.py
+      - name: Validate
+        run: |
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+          grep -q 'function cardWaitText(r)' public/app.js
+          grep -q 'TG ${fmtWait(r.telegramWaitMin)}' public/app.js
+          grep -q "state.country === 'ALL' ? 4 : visible.length" public/tgatlas-ui.js
+      - name: Commit changes safely
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/tgatlas-ui.js
+          git commit -m "Show Telegram-only time and load selected country chats"
+          git pull --rebase origin border-monitor
+          git push origin HEAD:border-monitor
