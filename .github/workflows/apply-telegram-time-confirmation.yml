@@ -1,0 +1,40 @@
+name: Apply Telegram time confirmation
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-telegram-time-confirmation.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply reliability patch
+        run: python scripts/patch_telegram_time_confirmation.py
+      - name: Validate syntax
+        run: |
+          node --check api/aggregate.js
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+          node --input-type=module <<'NODE'
+          import { applyTelegramTimeTrust } from './api/aggregate.js';
+          const mk=(value,age=10)=>({source:'telegram',value,ageMin:age});
+          const confirmed=applyTelegramTimeTrust({waitMin:100,sources:[mk(90)]});
+          const missing=applyTelegramTimeTrust({waitMin:100,sources:[]});
+          const conflict=applyTelegramTimeTrust({waitMin:100,sources:[mk(180)]});
+          if(!confirmed.timeReliable || confirmed.timeReliability!=='confirmed' || confirmed.waitMin>=100) throw new Error('confirmed case failed');
+          if(missing.timeReliable || missing.timeReliability!=='unconfirmed') throw new Error('missing case failed');
+          if(conflict.timeReliable || conflict.timeReliability!=='conflict' || conflict.waitMin!==100) throw new Error('conflict case failed');
+          console.log(JSON.stringify({confirmed,missing,conflict}));
+          NODE
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/aggregate.js public/app.js public/tgatlas-ui.js
+          git commit -m "Require Telegram confirmation for reliable border times"
+          git push origin HEAD:border-monitor
