@@ -51,49 +51,6 @@ async function serveStatic(res, filePath) {
   }
 }
 
-async function runSafeStartupDiagnostic() {
-  const originalFetch = globalThis.fetch;
-  const upstream = [];
-  try {
-    globalThis.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      const url = String(args[0] || '');
-      if (url.includes('nakordoni.eu')) {
-        let preview = '';
-        try { preview = (await response.clone().text()).slice(0, 300); } catch {}
-        upstream.push({
-          url: url.replace(/\?.*$/, ''),
-          status: response.status,
-          contentType: response.headers.get('content-type'),
-          preview
-        });
-      }
-      return response;
-    };
-
-    let payload = null;
-    const fakeReq = { method: 'GET', query: { direction: 'UA_EU' } };
-    const fakeRes = {
-      code: 200,
-      status(c) { this.code = c; return this; },
-      json(body) { payload = body; return this; }
-    };
-    await aggregateHandler(fakeReq, fakeRes);
-    const safe = {
-      httpStatus: fakeRes.code,
-      sourceStatus: payload?.sourceStatus || null,
-      crossingCount: Array.isArray(payload?.crossings) ? payload.crossings.length : null,
-      failures: Array.isArray(payload?.failures) ? payload.failures : [],
-      upstream
-    };
-    console.log('[border-diagnostic]', JSON.stringify(safe));
-  } catch (e) {
-    console.log('[border-diagnostic]', JSON.stringify({ error: e instanceof Error ? e.message : String(e), upstream }));
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-}
-
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -115,7 +72,4 @@ http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ ok: false, error: 'internal_error' }));
   }
-}).listen(port, '0.0.0.0', () => {
-  console.log(`Border Monitor UA listening on ${port}`);
-  setTimeout(runSafeStartupDiagnostic, 500);
-});
+}).listen(port, '0.0.0.0', () => console.log(`Border Monitor UA listening on ${port}`));
