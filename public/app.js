@@ -34,11 +34,16 @@ function actions(r){if(!r.camera)return'';return`<div class="card-actions"><a cl
 function telegramFallback(rows){const found=[];for(const r of rows){for(const src of (r.sources||[])){if(src?.source!=='telegram'||src.ageMin==null||Number(src.ageMin)>TG_TRUST_MAX_AGE)continue;const q=telegramQueueCount(src);if(q==null)continue;found.push({row:r,src,q,age:Number(src.ageMin)});break}}return found.sort((a,b)=>a.q-b.q||a.age-b.age)[0]||null}
 function comparisonFor(rows){
   const timed=rankable(rows);
+  const trustedTimed=timed.filter(r=>r.timeReliable===true);
   const queued=rows.filter(r=>queueRankValue(r)!=null&&!r.stale).sort((a,b)=>queueRankValue(a)-queueRankValue(b)||((displayAgeMin(a)??99999)-(displayAgeMin(b)??99999)));
-  if(timed.length>=2)return{mode:'time',list:timed,best:timed[0],worst:timed[timed.length-1]};
+  const queueHasBetterCoverage=queued.length>=2&&(trustedTimed.length<2||queued.length>=trustedTimed.length+2||queued.length>=timed.length+3);
+  if(queueHasBetterCoverage)return{mode:'queue',list:queued,best:queued[0],worst:queued[queued.length-1]};
+  if(trustedTimed.length>=2)return{mode:'time',list:trustedTimed,best:trustedTimed[0],worst:trustedTimed[trustedTimed.length-1]};
+  if(timed.length>=2&&queued.length<2)return{mode:'time',list:timed,best:timed[0],worst:timed[timed.length-1]};
   if(queued.length>=2)return{mode:'queue',list:queued,best:queued[0],worst:queued[queued.length-1]};
-  if(timed.length===1)return{mode:'time_single',list:timed,best:timed[0],worst:null};
+  if(trustedTimed.length===1)return{mode:'time_single',list:trustedTimed,best:trustedTimed[0],worst:null};
   if(queued.length===1)return{mode:'queue_single',list:queued,best:queued[0],worst:null};
+  if(timed.length===1)return{mode:'time_single',list:timed,best:timed[0],worst:null};
   return{mode:'none',list:[],best:null,worst:null};
 }
 function render(){
@@ -48,7 +53,7 @@ function render(){
   $('countBadge').textContent=rows.length;$('emptyState').classList.toggle('hidden',rows.length>0);$('heroCard').classList.remove('skeleton');
   const labels=document.querySelectorAll('.summary-card .summary-label');if(labels[0])labels[0].textContent=queueMode?(rankingIncomplete?`Підтверджені черги (${knownRows.length}/${activeRows.length})`:'TOP-3 за чергою'):'TOP-3 за часом';if(labels[1])labels[1].textContent=queueMode?(rankingIncomplete?'Найбільша підтверджена':'Найбільша черга'):'Найдовший час';
   if(cmp.mode==='time')$('heroCard').innerHTML=`<div class="hero-kicker">Найшвидше за наявними даними</div><div class="hero-main"><div><div class="hero-name">${flag(best.countryCode)} ${esc(best.name)}</div><div class="hero-meta">${esc(best.country)} · ${fmtAge(displayAgeMin(best))}</div></div><div class="hero-wait">${displayTimeText(best)}</div></div><div class="hero-note">${displayQueueText(best)} · ${timeTrustText(best)}</div>`;
-  else if(cmp.mode==='queue')$('heroCard').innerHTML=`<div class="hero-kicker">${rankingIncomplete?'Найменша підтверджена черга':'Найменша черга зараз'}</div><div class="hero-main"><div><div class="hero-name">${flag(best.countryCode)} ${esc(best.name)}</div><div class="hero-meta">${esc(best.country)} · ${fmtAge(displayAgeMin(best))}</div></div><div class="hero-wait">${queueRankText(best)}</div></div><div class="hero-note">${rankingIncomplete?`⚠️ Це не рейтинг усіх КПП. Числові/прямі дані є лише по ${knownRows.length} з ${activeRows.length}. Без достатніх даних: ${esc(unknownNames.join(', '))}${unknownRows.length>unknownNames.length?' та інші':''}. Вони можуть бути швидшими.`:'Порівняння за кількістю авто та прямими свіжими повідомленнями «без черги».'}</div>`;
+  else if(cmp.mode==='queue')$('heroCard').innerHTML=`<div class="hero-kicker">${rankingIncomplete?'Найменша підтверджена черга':'Найменша черга зараз'}</div><div class="hero-main"><div><div class="hero-name">${flag(best.countryCode)} ${esc(best.name)}</div><div class="hero-meta">${esc(best.country)} · ${fmtAge(displayAgeMin(best))}</div></div><div class="hero-wait">${queueRankText(best)}</div></div><div class="hero-note">${rankingIncomplete?`⚠️ Це не рейтинг усіх КПП. Числові/прямі дані є лише по ${knownRows.length} з ${activeRows.length}. Без достатніх даних: ${esc(unknownNames.join(', '))}${unknownRows.length>unknownNames.length?' та інші':''}. Вони можуть бути швидшими.`:'Рейтинг за найширшим набором свіжих підтверджених даних: кількість авто та прямі повідомлення «без черги».'}</div>`;
   else if(cmp.mode==='time_single')$('heroCard').innerHTML=`<div class="hero-kicker">Є фактичний час по одному КПП</div><div class="hero-main"><div><div class="hero-name">${flag(best.countryCode)} ${esc(best.name)}</div><div class="hero-meta">${esc(best.country)} · ${fmtAge(displayAgeMin(best))}</div></div><div class="hero-wait">${displayTimeText(best)}</div></div><div class="hero-note">Порівняти швидкість з іншими КПП поки неможливо.</div>`;
   else if(cmp.mode==='queue_single')$('heroCard').innerHTML=`<div class="hero-kicker">Є підтверджена черга лише по одному КПП</div><div class="hero-main"><div><div class="hero-name">${flag(best.countryCode)} ${esc(best.name)}</div><div class="hero-meta">${esc(best.country)} · ${fmtAge(displayAgeMin(best))}</div></div><div class="hero-wait">${queueRankText(best)}</div></div><div class="hero-note">⚠️ Це не означає, що цей КПП найшвидший. По інших переходах бракує числових даних.</div>`;
   else $('heroCard').innerHTML=`<div class="hero-kicker">Дані по країні</div><div class="hero-empty">Поки немає достатньо даних, щоб порівняти КПП.</div>`;
