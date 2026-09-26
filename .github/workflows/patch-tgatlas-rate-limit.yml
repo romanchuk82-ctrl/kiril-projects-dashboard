@@ -1,0 +1,102 @@
+name: Patch tgAtlas rate limit
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/patch-tgatlas-rate-limit.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Harden RapidAPI backoff and polish UI
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('api/telegram.js')
+          s=p.read_text()
+          s=s.replace('const CONCURRENCY = 3;', 'const CONCURRENCY = 1;')
+          old="""  const ctl = new AbortController();
+          const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
+          try {
+            const response = await fetch(url, {
+              headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, accept: 'application/json' },
+              cache: 'no-store', signal: ctl.signal
+            });
+            for (const name of ['x-ratelimit-requests-remaining', 'x-ratelimit-rapid-free-plans-hard-limit-remaining', 'x-ratelimit-rapid-free-plans-remaining']) {
+              const value = Number(response.headers.get(name));
+              if (Number.isFinite(value)) { quotaState = { remaining: value, observedAt: new Date().toISOString() }; break; }
+            }
+            const body = await response.json().catch(() => null);
+            if (!response.ok || body?.error) {
+              const code = body?.code || `HTTP_${response.status}`;
+              throw Object.assign(new Error(code), { code });
+            }
+            return body || {};
+          } finally {
+            clearTimeout(timer);
+          }
+"""
+          new="""  for (let attempt = 0; attempt < 5; attempt += 1) {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
+            try {
+              const response = await fetch(url, {
+                headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, accept: 'application/json' },
+                cache: 'no-store', signal: ctl.signal
+              });
+              for (const name of ['x-ratelimit-requests-remaining', 'x-ratelimit-rapid-free-plans-hard-limit-remaining', 'x-ratelimit-rapid-free-plans-remaining']) {
+                const value = Number(response.headers.get(name));
+                if (Number.isFinite(value)) { quotaState = { remaining: value, observedAt: new Date().toISOString() }; break; }
+              }
+              const body = await response.json().catch(() => null);
+              if (response.status === 429 && attempt < 4) {
+                const retryHeader = Number(response.headers.get('retry-after'));
+                const waitMs = Number.isFinite(retryHeader) && retryHeader > 0 ? retryHeader * 1000 : Math.min(12_000, 1800 * (attempt + 1));
+                await new Promise(resolve => setTimeout(resolve, waitMs));
+                continue;
+              }
+              if (!response.ok || body?.error) {
+                const code = body?.code || `HTTP_${response.status}`;
+                throw Object.assign(new Error(code), { code });
+              }
+              return body || {};
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+          throw Object.assign(new Error('HTTP_429'), { code: 'HTTP_429' });
+"""
+          if old not in s:
+              raise SystemExit('apiGet target not found')
+          s=s.replace(old,new,1)
+          s=s.replace("if (index + CONCURRENCY < sources.length) await new Promise(resolve => setTimeout(resolve, 250));", "if (index + CONCURRENCY < sources.length) await new Promise(resolve => setTimeout(resolve, 700));")
+          p.write_text(s)
+
+          app=Path('public/app.js')
+          a=app.read_text()
+          a=a.replace('Telegram MTProto: ${telegramStatusLabel(tg,td)}', 'Telegram: ${telegramStatusLabel(tg,td)}')
+          app.write_text(a)
+
+          css=Path('public/styles.css')
+          c=css.read_text()
+          marker='/* tgAtlas on-demand */'
+          if marker not in c:
+              c += '''\n\n/* tgAtlas on-demand */\n.tg-load-btn{appearance:none;border:1px solid rgba(11,42,74,.18);background:#fff;color:#0b2a4a;border-radius:10px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer;min-height:40px}.tg-load-btn:hover{background:#f4f7fa}.tg-load-btn:disabled{opacity:.65;cursor:wait}\n'''
+          css.write_text(c)
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/telegram.js public/app.js public/styles.css
+          git commit -m "Harden tgAtlas rate limiting and polish Telegram UI"
+          git push origin HEAD:border-monitor
