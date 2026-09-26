@@ -1,0 +1,72 @@
+name: Build Border Monitor bundle v2
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - 'server.source.js'
+      - 'api/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/bundle-border-monitor-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Build bundle
+        run: npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node20 --minify-whitespace --outfile=server.bundle.cjs
+      - name: Write bootstrap
+        shell: bash
+        run: |
+          cat > server.js <<'EOF'
+          import './server.bundle.cjs';
+          EOF
+      - name: Verify clean runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server.source.js
+          node --check server.js
+          node --check server.bundle.cjs
+          tmp="$(mktemp -d)"
+          cp server.js server.bundle.cjs "$tmp/"
+          cp -R public "$tmp/public"
+          (
+            cd "$tmp"
+            PORT=17891 node server.js >server.log 2>&1 &
+            pid=$!
+            trap 'kill $pid 2>/dev/null || true' EXIT
+            ok=0
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:17891/health >/tmp/border-health.json 2>/dev/null; then ok=1; break; fi
+              sleep 1
+            done
+            if [ "$ok" != 1 ]; then cat server.log; exit 1; fi
+            grep -q '"ok":true' /tmp/border-health.json
+            kill $pid 2>/dev/null || true
+            wait $pid 2>/dev/null || true
+          )
+      - name: Commit generated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server.js server.bundle.cjs
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Bundle production runtime [bundle-v2]"
+          git push origin HEAD:border-monitor
