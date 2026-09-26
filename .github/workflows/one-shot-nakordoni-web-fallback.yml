@@ -50,25 +50,7 @@ jobs:
               s = s.replace(imp, imp + "\nimport {fetchNakordoniWeb} from './nakordoni-web.js';", 1)
 
           marker = "function sort(rows){return[...rows].sort"
-          helper = r'''async function supplementNakordoniWeb(rows,direction){
-  const base=Array.isArray(rows)?rows.map(x=>({...x,sources:[...(x.sources||[])]})):[];
-  const usablePl=base.filter(x=>x.countryCode==='PL'&&!x.stale&&(x.waitMin!=null||x.queueCars!=null)).length;
-  if(usablePl>=8)return{rows:base,web:null,added:0};
-  let web;
-  try{web=await fetchNakordoniWeb(direction)}catch(e){return{rows:base,web:{crossings:[],failures:[{error:String(e?.message||e)}]},added:0}}
-  let added=0;
-  for(const w of web.crossings||[]){
-    const i=base.findIndex(x=>x.countryCode==='PL'&&rowMatches(x,w.name,'PL',[]));
-    if(i<0){base.push(w);added++;continue}
-    const cur=base[i];
-    const curUsable=!cur.stale&&(cur.waitMin!=null||cur.queueCars!=null);
-    const webUsable=!w.stale&&(w.waitMin!=null||w.queueCars!=null);
-    if(!curUsable&&webUsable){base[i]={...cur,...w,id:cur.id||w.id,sources:[...(cur.sources||[]),...(w.sources||[])]};added++}
-    else if((cur.sources||[]).every(z=>z.source!=='nakordoni')&&(w.sources||[]).length){base[i]={...cur,sources:[...(cur.sources||[]),...(w.sources||[])]}}
-  }
-  return{rows:base,web,added}
-}
-'''
+          helper = "async function supplementNakordoniWeb(rows,direction){\n  const base=Array.isArray(rows)?rows.map(x=>({...x,sources:[...(x.sources||[])]})):[];\n  const usablePl=base.filter(x=>x.countryCode==='PL'&&!x.stale&&(x.waitMin!=null||x.queueCars!=null)).length;\n  if(usablePl>=8)return{rows:base,web:null,added:0};\n  let web;\n  try{web=await fetchNakordoniWeb(direction)}catch(e){return{rows:base,web:{crossings:[],failures:[{error:String(e?.message||e)}]},added:0}}\n  let added=0;\n  for(const w of web.crossings||[]){\n    const i=base.findIndex(x=>x.countryCode==='PL'&&rowMatches(x,w.name,'PL',[]));\n    if(i<0){base.push(w);added++;continue}\n    const cur=base[i];\n    const curUsable=!cur.stale&&(cur.waitMin!=null||cur.queueCars!=null);\n    const webUsable=!w.stale&&(w.waitMin!=null||w.queueCars!=null);\n    if(!curUsable&&webUsable){base[i]={...cur,...w,id:cur.id||w.id,sources:[...(cur.sources||[]),...(w.sources||[])]};added++}\n    else if((cur.sources||[]).every(z=>z.source!=='nakordoni')&&(w.sources||[]).length){base[i]={...cur,sources:[...(cur.sources||[]),...(w.sources||[])]}}\n  }\n  return{rows:base,web,added}\n}\n"
           if 'async function supplementNakordoniWeb' not in s:
               if marker not in s: raise SystemExit('aggregate helper marker missing')
               s = s.replace(marker, helper + marker, 1)
