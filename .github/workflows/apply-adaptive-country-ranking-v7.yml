@@ -1,0 +1,32 @@
+name: Apply adaptive country ranking v7
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/apply-adaptive-country-ranking-v7.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply adaptive ranking
+        run: python scripts/adaptive_country_ranking_v7.py
+      - name: Validate
+        run: |
+          node --check public/app.js
+          grep -q "function comparisonFor" public/app.js
+          grep -q "Найменша черга зараз" public/app.js
+          grep -q "Порівняння за кількістю авто" public/app.js
+          grep -q "TOP-3 за чергою" public/app.js
+      - name: Commit changes safely
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js
+          git commit -m "Adapt country ranking to available time or queue data"
+          git pull --rebase origin border-monitor
+          git push origin HEAD:border-monitor
