@@ -4,7 +4,6 @@ import path from 'node:path';
 import aggregateHandler from './api/aggregate.js';
 import statusHandler from './api/status.js';
 import telegramHandler from './api/telegram.js';
-import telegramAuthHandler from './api/telegram-auth.js';
 
 const __dirname = process.cwd();
 const publicDir = path.join(__dirname, 'public');
@@ -56,17 +55,17 @@ async function runApi(handler, req, res, url) {
 async function serveStatic(res, filePath) {
   try {
     const fullPath = path.join(publicDir, filePath);
-    const data = await fs.readFile(fullPath);
+    let data = await fs.readFile(fullPath);
+    if (filePath === 'app.js') {
+      try {
+        const addon = await fs.readFile(path.join(publicDir, 'tgatlas-ui.js'));
+        data = Buffer.concat([data, Buffer.from('\n;\n'), addon]);
+      } catch {}
+    }
     res.statusCode = 200;
     res.setHeader('Content-Type', mime[path.extname(fullPath)] || 'application/octet-stream');
-    const sensitiveSetupAsset = filePath.startsWith('telegram-setup');
-    res.setHeader('Cache-Control', filePath === 'index.html' || sensitiveSetupAsset ? 'no-store' : 'public, max-age=300');
+    res.setHeader('Cache-Control', filePath === 'index.html' || filePath === 'app.js' ? 'no-store' : 'public, max-age=300');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (sensitiveSetupAsset) {
-      res.setHeader('Referrer-Policy', 'no-referrer');
-      res.setHeader('X-Frame-Options', 'DENY');
-      res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-    }
     res.end(data);
   } catch {
     res.statusCode = 404;
@@ -84,7 +83,7 @@ async function startupDiag() {
       await aggregateHandler(req,res);
       const official=payload?.sourceStatus?.official||{};
       const officialSources=(payload?.crossings||[]).flatMap(x=>x.sources||[]).filter(x=>String(x.source||'').startsWith('official_'));
-      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,officialLabels:[...new Set(officialSources.map(x=>x.label))],cameras:(payload?.crossings||[]).filter(x=>x.camera).length}));
+      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram,telegramMode:payload?.sourceStatus?.telegramDetails?.mode,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,cameras:(payload?.crossings||[]).filter(x=>x.camera).length}));
     } catch(e) { console.log('[border-selftest]',JSON.stringify({direction,error:String(e?.message||e)})); }
   }
 }
@@ -97,16 +96,12 @@ http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok: true, service: 'border-monitor-ua' }));
     }
     if (url.pathname === '/snapshot' || url.pathname === '/api/telegram') return runApi(telegramHandler, req, res, url);
-    if (url.pathname.startsWith('/api/telegram-auth/')) return runApi(telegramAuthHandler, req, res, url);
     if (url.pathname === '/api/aggregate') return runApi(aggregateHandler, req, res, url);
     if (url.pathname === '/api/status') return runApi(statusHandler, req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') return serveStatic(res, 'index.html');
     if (url.pathname === '/app.js') return serveStatic(res, 'app.js');
     if (url.pathname === '/styles.css') return serveStatic(res, 'styles.css');
     if (url.pathname === '/manifest.webmanifest') return serveStatic(res, 'manifest.webmanifest');
-    if (url.pathname === '/telegram/setup') return serveStatic(res, 'telegram-setup.html');
-    if (url.pathname === '/telegram-setup.js') return serveStatic(res, 'telegram-setup.js');
-    if (url.pathname === '/telegram-setup.css') return serveStatic(res, 'telegram-setup.css');
     res.statusCode = 404;
     res.end('Not found');
   } catch (e) {
