@@ -197,10 +197,22 @@ async function apiGet(pathname, params = {}) {
         headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, accept: 'application/json' },
         cache: 'no-store', signal: ctl.signal
       });
+      let requestRemaining = null;
       for (const name of ['x-ratelimit-requests-remaining', 'x-ratelimit-rapid-free-plans-hard-limit-remaining', 'x-ratelimit-rapid-free-plans-remaining']) {
         const value = Number(response.headers.get(name));
-        if (Number.isFinite(value)) { quotaState = { remaining: value, observedAt: new Date().toISOString() }; break; }
+        if (Number.isFinite(value)) { requestRemaining = value; break; }
       }
+      const metric = prefix => {
+        const value = name => { const n = Number(response.headers.get(name)); return Number.isFinite(n) ? n : null; };
+        return { limit: value(`x-ratelimit-${prefix}-limit`), remaining: value(`x-ratelimit-${prefix}-remaining`), reset: value(`x-ratelimit-${prefix}-reset`) };
+      };
+      quotaState = {
+        remaining: requestRemaining,
+        observedAt: new Date().toISOString(),
+        requests: metric('requests'),
+        lookups: metric('lookups'),
+        phone: metric('phone')
+      };
       const body = await response.json().catch(() => null);
       if (response.status === 429 && attempt < 4) {
         const retryHeader = Number(response.headers.get('retry-after'));
@@ -365,7 +377,7 @@ function buildPayload(results = [], requested = null) {
     requested,
     items,
     sources: allResults.map(result => sourceMeta(result, configured ? 'available' : 'missing_credentials')),
-    quota: quotaState.remaining == null ? null : { remaining: quotaState.remaining, observedAt: quotaState.observedAt }
+    quota: quotaState.remaining == null ? null : quotaState
   };
 }
 
