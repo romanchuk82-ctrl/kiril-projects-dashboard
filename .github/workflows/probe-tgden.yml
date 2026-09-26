@@ -1,0 +1,26 @@
+name: Probe tgden Telegram Index
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/probe-tgden.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query tgden catalog and MCP schemas
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'CATALOG'
+          for chat in hryshiv Krakivets shegunimeduka; do
+            echo "--- $chat"
+            curl -fsS --get 'https://tgden.com/api/catalog' --data-urlencode "q=$chat" --data-urlencode 'type=chat' --data-urlencode 'limit=5' | jq -c '{count:(.items|length),items:[.items[]?|{username,title,is_private,telegram_id}]}'
+          done
+          echo 'TOOLS'
+          curl -fsS 'https://tgden.com/api/mcp' -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq -c '.result.tools[] | select(.name=="search_telegram" or .name=="search_posts") | {name,inputSchema}'
