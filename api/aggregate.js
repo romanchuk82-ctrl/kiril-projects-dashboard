@@ -1,6 +1,7 @@
 import {fetchOfficial,cameraFor} from './official.js';
 import {getTelegramSnapshot} from './telegram.js';
 import {fetchNakordoniWeb} from './nakordoni-web.js';
+import {fetchKordonLive} from './kordon-live.js';
 const DESTS={2:{code:'PL',name:'Польща'},3:{code:'SK',name:'Словаччина'},4:{code:'HU',name:'Угорщина'},5:{code:'RO',name:'Румунія'}};
 const COUNTRY_NAMES={PL:'Польща',SK:'Словаччина',HU:'Угорщина',RO:'Румунія',MD:'Молдова'};
 const TTL=5*60*1000;
@@ -89,6 +90,32 @@ export function applyTelegramTimeTrust(row){
   if(support>=1){out.waitMin=base;out.timeReliable=true;out.timeReliability='supported';out.timeReliabilityReason=`Ситуацію підтверджує ${support} пряме повідомлення Telegram`;out.confidence='medium';return out}
   out.waitMin=base;out.timeReliable=false;out.timeReliability='unconfirmed';out.timeReliabilityReason=fresh.length?'Telegram є, але немає прямого підтвердження ситуації':'Немає свіжого підтвердження з Telegram за останні 3 години';out.confidence='low';return out
 }
+function mergeKordon(crossings,kordon,direction){
+  const out=Array.isArray(crossings)?crossings.map(x=>({...x,sources:[...(x.sources||[])]})):[];
+  if(direction!=='UA_EU'||!Array.isArray(kordon?.items))return out;
+  for(const item of kordon.items){
+    const q=Number(item?.queueCars);
+    if(!Number.isFinite(q)||q<0||item?.stale)continue;
+    let f=out.find(x=>rowMatches(x,item.name,'PL',[]));
+    if(!f){
+      f={id:`kordon-${keyName(item.name)}-${direction}`,ppid:null,name:item.name,country:'Польща',countryCode:'PL',direction,queueCars:null,waitMin:null,waitStatus:null,ageMin:item.ageMin??null,updatedAt:item.updatedAt||null,trend:'unknown',trendPercent:null,stale:false,confidence:'medium',sourceUrl:item.sourceUrl||'https://kordon.info/',sources:[]};
+      out.push(f)
+    }
+    const wasStale=Boolean(f.stale);
+    f.sources.push({source:'kordon_info',label:'Kordon.info · данӖ ДПСУ',queueCars:Math.round(q),updatedAt:item.updatedAt||null,ageMin:item.ageMin??null,sourceUrl:item.sourceUrl||'https://kordon.info/',note:`${Math.round(q)} авто · за даними ДПСУ через Kordon.info`,evidence:item.evidence||null});
+    f.queueCars=Math.round(q);
+    f.queueSource='kordon_info';
+    f.queueAgeMin=item.ageMin??null;
+    if(wasStale&&f.waitMin!=null){f.waitMin=null;f.baseWaitMin=null}
+    if(item.ageMin!=null&&(f.ageMin==null||Number(item.ageMin)<Number(f.ageMin)))f.ageMin=Number(item.ageMin);
+    if(item.updatedAt)f.updatedAt=item.updatedAt;
+    f.stale=false;
+    f.confidence=f.confidence==='high'?'high':'medium';
+    f.camera=f.camera||cameraFor(f)
+  }
+  return out
+}
+function kordonDetails(kordon){return{count:Array.isArray(kordon?.items)?kordon.items.length:0,ageMin:kordon?.ageMin??null,upstreamClock:kordon?.upstreamClock??null,attribution:kordon?.attribution||null,error:kordon?.error||null}}
 async function supplementNakordoniWeb(rows,direction){
   const base=Array.isArray(rows)?rows.map(x=>({...x,sources:[...(x.sources||[])]})):[];
   const usablePl=base.filter(x=>x.countryCode==='PL'&&!x.stale&&(x.waitMin!=null||x.queueCars!=null)).length;
@@ -109,4 +136,33 @@ async function supplementNakordoniWeb(rows,direction){
 }
 function sort(rows){return[...rows].sort((a,b)=>(a.timeReliable===true?0:1)-(b.timeReliable===true?0:1)||(a.stale?1:0)-(b.stale?1:0)||(a.waitMin??999999)-(b.waitMin??999999)||(a.ageMin??9999)-(b.ageMin??9999))}
 async function fetchRegionalUpstream(direction){const base=process.env.UPSTREAM_AGGREGATOR_URL?.replace(/\/$/,'');if(!base)return null;try{const r=await fetch(`${base}/api/aggregate?direction=${direction}`,{headers:{Accept:'application/json'},cache:'no-store'});const body=await r.json().catch(()=>null);if(!r.ok||!body?.ok)return null;return body}catch{return null}}
-export default async function handler(req,res){if(req.method!=='GET')return res.status(405).json({ok:false,error:'method_not_allowed'});const direction=req.query?.direction==='EU_UA'?'EU_UA':'UA_EU';const regional=await fetchRegionalUpstream(direction);if(regional){const tg=await getTelegram();const rows=mergeTelegram(Array.isArray(regional.crossings)?regional.crossings:[],tg.items,direction,tg.sources);return res.status(200).json({...regional,generatedAt:new Date().toISOString(),crossings:sort(rows),sourceStatus:{...(regional.sourceStatus||{}),telegram:tg.status,telegramDetails:tg.meta},viaRegionalUpstream:true,telegramLocal:true})}const generatedAt=new Date().toISOString();const [tg,official]=await Promise.all([getTelegram(),getOfficial(direction)]);const apiKey=process.env.NKD_API_KEY||s(req.headers?.['x-nkd-key']);if(!apiKey){const nw=await supplementNakordoniWeb([],direction);const rows=mergeTelegram(mergeOfficial(nw.rows,official.items,direction),tg.items,direction,tg.sources);return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added},official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})}const ck=`${apiKey.slice(-6)}:${direction}`;let nkd=cache.get(ck);let fromCache=true;if(!nkd||Date.now()-nkd.ts>TTL){nkd={ts:Date.now(),value:await getNkd(apiKey,direction)};cache.set(ck,nkd);fromCache=false}const x=nkd.value;const nw=await supplementNakordoniWeb(x.crossings,direction);let rows=mergeOfficial(nw.rows,official.items,direction);rows=mergeTelegram(rows,tg.items,direction,tg.sources);return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nw.added?'api_plus_web':'api'):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added},official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})}
+export default async function handler(req,res){
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'method_not_allowed'});
+  const direction=req.query?.direction==='EU_UA'?'EU_UA':'UA_EU';
+  const regional=await fetchRegionalUpstream(direction);
+  if(regional){
+    const [tg,kordon]=await Promise.all([getTelegram(),fetchKordonLive(direction)]);
+    let base=mergeKordon(Array.isArray(regional.crossings)?regional.crossings:[],kordon,direction);
+    const rows=mergeTelegram(base,tg.items,direction,tg.sources);
+    return res.status(200).json({...regional,generatedAt:new Date().toISOString(),crossings:sort(rows),sourceStatus:{...(regional.sourceStatus||{}),kordon:kordon.status,kordonDetails:kordonDetails(kordon),telegram:tg.status,telegramDetails:tg.meta},viaRegionalUpstream:true,telegramLocal:true})
+  }
+  const generatedAt=new Date().toISOString();
+  const [tg,official,kordon]=await Promise.all([getTelegram(),getOfficial(direction),fetchKordonLive(direction)]);
+  const apiKey=process.env.NKD_API_KEY||s(req.headers?.['x-nkd-key']);
+  if(!apiKey){
+    const nw=await supplementNakordoniWeb([],direction);
+    let rows=mergeKordon(nw.rows,kordon,direction);
+    rows=mergeOfficial(rows,official.items,direction);
+    rows=mergeTelegram(rows,tg.items,direction,tg.sources);
+    return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})
+  }
+  const ck=`${apiKey.slice(-6)}:${direction}`;
+  let nkd=cache.get(ck),fromCache=true;
+  if(!nkd||Date.now()-nkd.ts>TTL){nkd={ts:Date.now(),value:await getNkd(apiKey,direction)};cache.set(ck,nkd);fromCache=false}
+  const x=nkd.value;
+  const nw=await supplementNakordoniWeb(x.crossings,direction);
+  let rows=mergeKordon(nw.rows,kordon,direction);
+  rows=mergeOfficial(rows,official.items,direction);
+  rows=mergeTelegram(rows,tg.items,direction,tg.sources);
+  return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:5,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nw.added?'api_plus_web':'api'):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})
+}

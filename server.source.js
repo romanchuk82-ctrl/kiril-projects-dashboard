@@ -83,7 +83,7 @@ async function startupDiag() {
       await aggregateHandler(req,res);
       const official=payload?.sourceStatus?.official||{};
       const officialSources=(payload?.crossings||[]).flatMap(x=>x.sources||[]).filter(x=>String(x.source||'').startsWith('official_'));
-      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,telegram:payload?.sourceStatus?.telegram,telegramMode:payload?.sourceStatus?.telegramDetails?.mode,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,cameras:(payload?.crossings||[]).filter(x=>x.camera).length}));
+      console.log('[border-selftest]',JSON.stringify({direction,httpStatus:code,nakordoni:payload?.sourceStatus?.nakordoni,kordon:payload?.sourceStatus?.kordon,kordonCount:payload?.sourceStatus?.kordonDetails?.count,telegram:payload?.sourceStatus?.telegram,telegramMode:payload?.sourceStatus?.telegramDetails?.mode,rows:payload?.crossings?.length||0,official,officialEvidence:officialSources.length,cameras:(payload?.crossings||[]).filter(x=>x.camera).length}));
     } catch(e) { console.log('[border-selftest]',JSON.stringify({direction,error:String(e?.message||e)})); }
   }
 }
