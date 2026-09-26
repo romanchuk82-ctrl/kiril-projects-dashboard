@@ -1,0 +1,19 @@
+name: Probe TeleCrow resolver
+on:
+  push:
+    branches: [border-monitor]
+    paths: ['.github/workflows/probe-telecrow-resolver.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect public resolver
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 30 'https://telecrow.com/tools/telegram-username-to-id' -o /tmp/page.html
+          echo '--- candidate endpoints/scripts ---'
+          grep -Eo '(/api/[A-Za-z0-9_/?=&.-]+|src="[^"]+\.js[^"]*")' /tmp/page.html | head -80 || true
+          echo '--- fetch snippets ---'
+          grep -nE 'fetch\(|axios|username|lookup|resolve' /tmp/page.html | head -80 || true
