@@ -95,7 +95,7 @@ async function serveStatic(req, res, filePath) {
     }
     res.statusCode = 200;
     res.setHeader('Content-Type', mime[path.extname(fullPath)] || 'application/octet-stream');
-    res.setHeader('Cache-Control', filePath === 'index.html' || filePath === 'app.js' ? 'no-store' : 'public, max-age=300');
+    res.setHeader('Cache-Control', filePath === 'index.html' || filePath === 'app.js' || filePath === 'history.html' || filePath === 'history.js' ? 'no-store' : 'public, max-age=300');
     if (req.method === 'HEAD') return res.end();
     res.end(data);
   } catch {
@@ -153,8 +153,12 @@ const server = http.createServer({ maxHeaderSize: 8192, requestTimeout: 15_000, 
     if (url.pathname === '/api/aggregate') return runApi(aggregateHandler, req, res, url);
     if (url.pathname === '/api/status') return runApi(statusHandler, req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') return serveStatic(req, res, 'index.html');
+    if (url.pathname === '/history' || url.pathname === '/history.html') return serveStatic(req, res, 'history.html');
     if (url.pathname === '/app.js') return serveStatic(req, res, 'app.js');
+    if (url.pathname === '/history.js') return serveStatic(req, res, 'history.js');
     if (url.pathname === '/styles.css') return serveStatic(req, res, 'styles.css');
+    if (url.pathname === '/history.css') return serveStatic(req, res, 'history.css');
+    if (url.pathname === '/section-nav.css') return serveStatic(req, res, 'section-nav.css');
     if (url.pathname === '/manifest.webmanifest') return serveStatic(req, res, 'manifest.webmanifest');
     res.statusCode = 404;
     res.setHeader('Cache-Control', 'no-store');
