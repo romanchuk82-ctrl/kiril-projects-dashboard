@@ -32,6 +32,7 @@ const server=http.createServer(async(req,res)=>{
       if(!next||!Array.isArray(next.catalog)||!next.datasets||typeof next.datasets!=='object')return json(res,400,{ok:false,error:'invalid_model'});
       await saveModel(next);return json(res,200,{ok:true,generatedAt:next.generatedAt||null,catalog:next.catalog.length,datasets:Object.keys(next.datasets).length});
     }
+    if(req.method==='GET'&&url.pathname==='/api/export')return model?json(res,200,model):json(res,503,{ok:false,error:'history_model_not_ready'});
     if(req.method==='GET'&&url.pathname==='/api/catalog')return model?json(res,200,{ok:true,data:model.catalog}):json(res,503,{ok:false,error:'history_model_not_ready'});
     if(req.method==='GET'&&(url.pathname==='/api/series'||url.pathname==='/api/insights')){
       if(!model)return json(res,503,{ok:false,error:'history_model_not_ready'});
