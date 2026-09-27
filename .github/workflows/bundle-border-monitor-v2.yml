@@ -1,6 +1,6 @@
 name: Build Border Monitor bundle v2
 
-# Rebuild trigger: short no-queue Telegram replies 2026-09-27
+# Rebuild trigger: hardened production runtime 2026-09-27
 on:
   push:
     branches: [border-monitor]
@@ -25,11 +25,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm test
       - name: Build bundle
-        run: npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node20 --minify-whitespace --outfile=server.bundle.cjs
+        run: npx --yes esbuild@0.25.10 server.source.js --bundle --platform=node --format=cjs --target=node24 --minify-whitespace --outfile=server.bundle.cjs
       - name: Write bootstrap
         shell: bash
         run: |
