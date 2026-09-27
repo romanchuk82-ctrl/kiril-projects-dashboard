@@ -45,8 +45,26 @@
     </div>`;
   }
 
-  function missingRow(label, text) {
-    return `<div class="prov-row"><div><span class="prov-source">${esc(label)}</span><div class="prov-note">${esc(text)}</div></div><div class="prov-right"><strong>—</strong></div></div>`;
+  function syntheticNakordoni(row) {
+    const url = String(row?.sourceUrl || '');
+    const hasNkdIdentity = Boolean(row?.ppid) || url.includes('nakordoni.eu');
+    if (!hasNkdIdentity) return null;
+    const valueRaw = row?.baseWaitMin != null ? Number(row.baseWaitMin) : Number(row?.waitMin);
+    const value = Number.isFinite(valueRaw) && valueRaw >= 0 ? valueRaw : null;
+    const queueIsOtherSource = String(row?.queueSource || '').toLowerCase().includes('kordon');
+    const queueRaw = !queueIsOtherSource && row?.queueCars != null ? Number(row.queueCars) : NaN;
+    const queueCars = Number.isFinite(queueRaw) && queueRaw >= 0 ? Math.round(queueRaw) : null;
+    if (value == null && queueCars == null) return null;
+    return {
+      source: 'nakordoni',
+      label: 'Nakordoni',
+      value,
+      queueCars,
+      ageMin: row?.waitAgeMin ?? row?.ageMin ?? null,
+      updatedAt: row?.waitUpdatedAt || row?.updatedAt || null,
+      sourceUrl: url.includes('nakordoni.eu') ? url : (row?.ppid ? `https://nakordoni.eu/uk/id/${row.ppid}` : 'https://nakordoni.eu/'),
+      note: 'значення з агрегованої відповіді'
+    };
   }
 
   provenance = function(row) {
@@ -54,6 +72,11 @@
     const main = mainSource(row);
     const groups = { nakordoni: [], kordon: [], official: [], telegram: [], other: [] };
     for (const src of all) groups[sourceGroup(src)].push(src);
+
+    if (!groups.nakordoni.length) {
+      const fallback = syntheticNakordoni(row);
+      if (fallback) groups.nakordoni.push(fallback);
+    }
 
     for (const key of Object.keys(groups)) {
       groups[key].sort((a, b) => (Number(a?.ageMin ?? 999999) - Number(b?.ageMin ?? 999999)));
@@ -73,34 +96,28 @@
     } else if (row?.telegramWaitMin != null) {
       summary = `Незалежного числового часу немає. Telegram повідомляє фактичний час <strong>${fmtWait(row.telegramWaitMin)}</strong>.`;
     } else if (displayQueue(row) != null || qualitativeNoQueue(row)) {
-      summary = 'Числового часу поки немає, але джерела дають інформацію про кількість авто або стан черги.';
+      summary = 'Числового часу поки немає, але нижче видно фактичні дані джерел, які щось повернули для цього КПП.';
     } else {
-      summary = 'Для цього КПП поки немає надійного числового часу. Нижче видно, що саме повернуло кожне джерело.';
+      summary = 'Для цього КПП поки немає надійного числового часу. Нижче показані лише джерела, які реально повернули дані.';
     }
 
     const rows = [];
     if (groups.nakordoni.length) rows.push(...groups.nakordoni.map(src => sourceRow(src, main)));
-    else rows.push(missingRow('Nakordoni', 'У відповіді для цього КПП зараз немає даних Nakordoni.'));
-
     if (groups.kordon.length) rows.push(...groups.kordon.map(src => sourceRow(src, main)));
-    else rows.push(missingRow('ДПСУ / Kordon.info', 'Для цього КПП джерело зараз не повернуло окремих даних.'));
-
     if (groups.official.length) rows.push(...groups.official.map(src => sourceRow(src, main)));
-    else rows.push(missingRow('Офіційне джерело країни', 'Окремих офіційних даних для цього КПП у поточній відповіді немає.'));
 
     if (groups.telegram.length) {
       const latest = groups.telegram[0];
       const more = groups.telegram.length > 1 ? `Ще ${groups.telegram.length - 1} свіжих повідомлень нижче.` : 'Детальне повідомлення показано нижче.';
       rows.push(sourceRow(latest, null, more));
-    } else {
-      rows.push(missingRow('Telegram', 'Немає свіжого релевантного повідомлення за останні 3 години.'));
     }
 
     if (groups.other.length) rows.push(...groups.other.map(src => sourceRow(src, main)));
 
     const trust = row?.waitMin != null ? ` <span class="${row.timeReliable ? '' : 'warn-text'}">${esc(timeTrustText(row))}</span>` : '';
     const conflict = sourceConflict(row) || row?.timeReliability === 'conflict' ? ' <span class="warn-text">⚠️ Джерела відрізняються.</span>' : '';
+    const list = rows.length ? rows.join('') : '<div class="prov-empty">Жодне підключене джерело зараз не дало окремого значення для цього КПП.</div>';
 
-    return `<div class="provenance"><div class="prov-title">Що показують різні джерела</div><div class="prov-summary">${summary}${trust}${conflict}</div><div class="prov-list">${rows.join('')}</div></div>`;
+    return `<div class="provenance"><div class="prov-title">Що показують різні джерела</div><div class="prov-summary">${summary}${trust}${conflict}</div><div class="prov-list">${list}</div></div>`;
   };
 })();
