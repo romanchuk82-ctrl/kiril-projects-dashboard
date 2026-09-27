@@ -14,8 +14,16 @@ async function callRpc(functionName,body){
   const timeout=setTimeout(()=>ctl.abort(),12000);
   try{
     const response=await fetch(`${baseUrl}/rest/v1/rpc/${functionName}`,{method:'POST',headers,body:JSON.stringify(body||{}),signal:ctl.signal,cache:'no-store'});
-    const payload=await response.json().catch(()=>null);
-    if(!response.ok){const e=new Error('history_upstream_failed');e.statusCode=response.status>=500?502:response.status;throw e}
+    const raw=await response.text();
+    let payload=null;try{payload=raw?JSON.parse(raw):null}catch{}
+    if(!response.ok){
+      const e=new Error('history_upstream_failed');
+      e.statusCode=502;
+      e.upstreamStatus=response.status;
+      e.upstreamCode=payload?.code||payload?.error_code||null;
+      e.upstreamMessage=payload?.message||payload?.msg||payload?.error||raw?.slice(0,240)||null;
+      throw e;
+    }
     return payload;
   }finally{clearTimeout(timeout)}
 }
@@ -38,7 +46,7 @@ export default async function historyHandler(req,res){
     return res.status(200).json({ok:true,data:mode==='series'?(Array.isArray(data)?data:[]):(data||{})});
   }catch(error){
     const status=Number(error?.statusCode)||502;
-    if(status>=500)console.error('[history-api]',String(error?.message||'history_error'));
-    return res.status(status).json({ok:false,error:status===503?'history_not_configured':'history_unavailable'});
+    if(status>=500)console.error('[history-api]',JSON.stringify({error:String(error?.message||'history_error'),upstreamStatus:error?.upstreamStatus||null,upstreamCode:error?.upstreamCode||null,upstreamMessage:error?.upstreamMessage||null}));
+    return res.status(status).json({ok:false,error:status===503?'history_not_configured':'history_unavailable',upstreamStatus:error?.upstreamStatus||null,upstreamCode:error?.upstreamCode||null,upstreamMessage:error?.upstreamMessage||null});
   }
 }
