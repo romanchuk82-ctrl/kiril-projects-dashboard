@@ -4,6 +4,7 @@ import path from 'node:path';
 import aggregateHandler from './api/aggregate.js';
 import statusHandler from './api/status.js';
 import telegramHandler from './api/telegram.js';
+import historyHandler from './api/history.js';
 
 const __dirname = process.cwd();
 const publicDir = path.join(__dirname, 'public');
@@ -39,7 +40,7 @@ function clientIp(req) {
 
 function rateLimit(req, res, pathname) {
   const now = Date.now();
-  const limit = pathname === '/api/telegram' ? 240 : pathname === '/api/aggregate' ? 120 : pathname === '/api/status' ? 60 : 600;
+  const limit = pathname === '/api/telegram' ? 240 : pathname === '/api/aggregate' ? 120 : pathname === '/api/status' ? 60 : pathname.startsWith('/history-api/') ? 120 : 600;
   const key = `${clientIp(req)}|${pathname}`;
   let bucket = rateBuckets.get(key);
   if (!bucket || now - bucket.startedAt >= RATE_WINDOW_MS) bucket = { startedAt: now, count: 0 };
@@ -144,7 +145,7 @@ const server = http.createServer({ maxHeaderSize: 8192, requestTimeout: 15_000, 
       if (method === 'HEAD') return res.end();
       return res.end(JSON.stringify({ ok: true, service: 'border-monitor-ua' }));
     }
-    if (method === 'HEAD' && url.pathname.startsWith('/api/')) {
+    if (method === 'HEAD' && (url.pathname.startsWith('/api/') || url.pathname.startsWith('/history-api/'))) {
       res.statusCode = 405;
       res.setHeader('Allow', 'GET');
       return res.end();
@@ -152,6 +153,10 @@ const server = http.createServer({ maxHeaderSize: 8192, requestTimeout: 15_000, 
     if (url.pathname === '/api/telegram') return runApi(telegramHandler, req, res, url);
     if (url.pathname === '/api/aggregate') return runApi(aggregateHandler, req, res, url);
     if (url.pathname === '/api/status') return runApi(statusHandler, req, res, url);
+    if (url.pathname.startsWith('/history-api/')) {
+      url.searchParams.set('mode', url.pathname.slice('/history-api/'.length));
+      return runApi(historyHandler, req, res, url);
+    }
     if (url.pathname === '/' || url.pathname === '/index.html') return serveStatic(req, res, 'index.html');
     if (url.pathname === '/history' || url.pathname === '/history.html') return serveStatic(req, res, 'history.html');
     if (url.pathname === '/app.js') return serveStatic(req, res, 'app.js');
