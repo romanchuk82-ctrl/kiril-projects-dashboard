@@ -6,9 +6,8 @@
   <meta name="theme-color" content="#0B2A4A" />
   <title>Border Monitor UA</title>
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=20260927-conflict1" />
+  <link rel="stylesheet" href="/styles.css?v=20260927-secure1" />
   <link rel="stylesheet" href="/section-nav.css?v=20260927-history1" />
-  <link rel="stylesheet" href="/conflict-ui.css?v=20260927-conflict1" />
 </head>
 <body>
   <div class="app-shell">
@@ -102,7 +101,7 @@
       <section>
         <h3>Як формується підсумок</h3>
         <p>Для кожного КПП джерела порівнюються за часом оновлення. Свіжіші дані мають більшу вагу. Telegram не замінює базове джерело автоматично: він може підтвердити його або показати розбіжність.</p>
-        <p>Якщо свіжий Telegram прямо суперечить базовій оцінці, картка переходить у статус <b>«⚠️ Джерела розходяться»</b>. Базовий час залишається видимим із підписом джерела, а сигнал Telegram показується окремим зеленим або червоним блоком. У такій ситуації сайт не називає КПП просто «великою чергою» або «без черги».</p>
+        <p>Якщо свіжий Telegram прямо суперечить базовій оцінці, картка переходить у статус <b>«⚠️ Джерела розходяться»</b>. На згорнутій картці одразу видно, що саме повідомляє Telegram, а базовий час лишається праворуч як окремий орієнтир. У такій ситуації сайт не називає КПП просто «великою чергою» або «без черги».</p>
         <p>Кнопка <b>«Як розраховано»</b> всередині картки показує повний розбір саме цього КПП: яке джерело основне, коли воно оновилось та що сказали інші джерела.</p>
       </section>
 
@@ -119,7 +118,6 @@
     <div class="info-dialog-foot"><button id="siteInfoDone" type="button" class="primary-dialog-btn">Зрозуміло</button></div>
   </dialog>
 
-  <script type="module" src="/app.js?v=20260927-conflict1"></script>
-  <script type="module" src="/conflict-ui.js?v=20260927-conflict1"></script>
+  <script type="module" src="/app.js?v=20260927-conflict2"></script>
 </body>
 </html>
