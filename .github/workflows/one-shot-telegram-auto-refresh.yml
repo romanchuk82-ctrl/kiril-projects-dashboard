@@ -1,0 +1,81 @@
+name: One-shot Telegram auto refresh
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - .github/workflows/one-shot-telegram-auto-refresh.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Patch Telegram live UX
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('public/app.js')
+          s=p.read_text()
+
+          marker="const fmtAge=m=>m==null?'час невідомий':m<1?'щойно':m<60?`${Math.round(m)} хв тому`:`${Math.floor(m/60)} год ${Math.round(m%60)} хв тому`;"
+          addition="""const fmtTelegramDateTime=v=>{if(!v)return'';const d=new Date(v);if(Number.isNaN(d.getTime()))return'';return d.toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',', ' ·')};"""
+          if 'const fmtTelegramDateTime=' not in s:
+              if marker not in s: raise SystemExit('fmtAge marker missing')
+              s=s.replace(marker, marker+'\n'+addition, 1)
+
+          new_item="""function telegramItemHtml(s){const ch=telegramChannelUrl(s),post=s.sourceUrl,name=telegramChannelName(s),stamp=fmtTelegramDateTime(s.updatedAt);const stats=[s.value!=null?`⏱ ${fmtWait(s.value)}`:'',s.queueCars!=null?`🚗 ${s.queueCars} авто`:''].filter(Boolean).join(' · ');return`<div class=\"telegram-item\"><div class=\"telegram-head\"><strong>${esc(name)}</strong><span>${stamp?esc(stamp):(s.ageMin!=null?fmtAge(s.ageMin):'')}</span></div>${stats?`<div class=\"telegram-stats\">${stats}</div>`:''}${s.note?`<div class=\"telegram-note\">${esc(s.note)}</div>`:''}${s.replyContext?`<div class=\"telegram-reply\"><span>↩️ Відповідь на:</span> ${esc(s.replyContext)}</div>`:''}<div class=\"telegram-meta\">${s.ageMin!=null?`${fmtAge(s.ageMin)} · `:''}${esc(directionBasisLabel(s.directionBasis))}</div><div class=\"telegram-links\">${ch?`<a href=\"${esc(ch)}\" target=\"_blank\" rel=\"noopener\">Чат ↗</a>`:''}${post?`<a href=\"${esc(post)}\" target=\"_blank\" rel=\"noopener\">Конкретне повідомлення ↗</a>`:''}</div></div>`}
+"""
+          pat=r"function telegramItemHtml\(s\)\{.*?\}\nfunction telegramBlock"
+          m=re.search(pat,s,re.S)
+          if not m: raise SystemExit('telegramItemHtml block missing')
+          s=s[:m.start()]+new_item+'function telegramBlock'+s[m.end():]
+
+          new_block="""function telegramBlock(r){const tg=(r.sources||[]).filter(s=>s.source==='telegram'&&s.ageMin!=null&&Number(s.ageMin)>=0&&Number(s.ageMin)<=TG_TRUST_MAX_AGE).sort((a,b)=>(a.ageMin??9999)-(b.ageMin??9999)),chat=r.telegramChat||null;if(!tg.length){const link=chat?.url?`<div class=\"telegram-links\"><a href=\"${esc(chat.url)}\" target=\"_blank\" rel=\"noopener\">Відкрити чат «${esc(chat.label||'Telegram')}» ↗</a></div>`:'';const message=chat?.status==='error'?'Автоматичне читання тимчасово недоступне. Чат доступний напряму.':'Зараз немає актуального релевантного повідомлення по цьому КПП.';return`<div class=\"telegram-box no-tg\"><div class=\"telegram-title\">💬 Останнє актуальне повідомлення Telegram</div><div class=\"telegram-empty\">${message}</div>${link}</div>`}const latest=tg[0],chatLink=chat?.url?`<a class=\"telegram-chat-main\" href=\"${esc(chat.url)}\" target=\"_blank\" rel=\"noopener\">Відкрити чат ↗</a>`:'';return`<div class=\"telegram-box\"><div class=\"telegram-title\"><span>💬 Останнє актуальне повідомлення Telegram</span>${chatLink}</div><div class=\"telegram-list\">${telegramItemHtml(latest)}</div><div class=\"telegram-disclaimer\">Оновлюється автоматично. Показується найсвіжіше релевантне повідомлення для цього КПП.</div></div>`}
+"""
+          pat=r"function telegramBlock\(r\)\{.*?\}\nfunction actions"
+          m=re.search(pat,s,re.S)
+          if not m: raise SystemExit('telegramBlock block missing')
+          s=s[:m.start()]+new_block+'function actions'+s[m.end():]
+
+          new_load="""async function load(){if(state.loading)return;state.loading=true;$('updatedText').textContent='Оновлюю дані автоматично…';try{const r=await fetch(`/api/aggregate?direction=${state.direction}`,{cache:'no-store'}),data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Не вдалося отримати дані');state.rows=Array.isArray(data.crossings)?data.crossings:[];const dt=data.generatedAt?new Date(data.generatedAt):new Date();$('updatedText').textContent=`LIVE · автооновлено ${dt.toLocaleTimeString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'})}`;const nk=data.sourceStatus?.nakordoni,kd=data.sourceStatus?.kordon,kdd=data.sourceStatus?.kordonDetails,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;const kt=kd==='connected'?`✓${kdd?.count?` ${kdd.count}`:''}`:kd==='not_applicable'?'—':kd==='stale_cache'?'кеш':kd||'—';$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Kordon/ДПСУ: ${kt} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()}catch(e){$('updatedText').textContent='Тимчасова помилка автооновлення';$('sourceText').textContent=String(e.message||e)}finally{state.loading=false}}
+"""
+          pat=r"async function load\(\)\{.*?\}\ndocument\.querySelectorAll\('\.segment-btn'\)"
+          m=re.search(pat,s,re.S)
+          if not m: raise SystemExit('load block missing')
+          s=s[:m.start()]+new_load+"document.querySelectorAll('.segment-btn')"+s[m.end():]
+
+          old="$('refreshBtn').addEventListener('click',load);load();"
+          new="load();setInterval(load,60_000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});window.addEventListener('focus',load);"
+          if old not in s: raise SystemExit('refresh binding missing')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          p=Path('public/index.html')
+          s=p.read_text()
+          s=s.replace('      <button id="refreshBtn" class="refresh-btn" type="button" aria-label="Оновити">↻</button>\n','',1)
+          s=s.replace('<p>Спробуй оновити або вибрати інший напрямок.</p>','<p>Дані оновлюються автоматично. Можна вибрати інший напрямок.</p>',1)
+          s=s.replace('/app.js?v=20260926-mtproto','/app.js?v=20260927-live',1)
+          p.write_text(s)
+          PY
+          node --check public/app.js
+          grep -q 'setInterval(load,60_000)' public/app.js
+          grep -q 'Останнє актуальне повідомлення Telegram' public/app.js
+          ! grep -q 'refreshBtn' public/app.js
+          ! grep -q 'refreshBtn' public/index.html
+      - name: Commit and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-telegram-auto-refresh.yml
+          git add public/app.js public/index.html
+          git commit -m "Auto-refresh Telegram and show latest relevant message"
+          git push origin HEAD:border-monitor
