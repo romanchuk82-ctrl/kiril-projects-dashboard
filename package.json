@@ -1,18 +1,20 @@
 {
   "name": "border-monitor-ua",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check api/telegram.js && node --check api/telegram-auth.js && node --check api/aggregate.js && node --check public/app.js && node --check public/telegram-setup.js"
+    "check": "node --check server.js && node --check api/telegram.js && node --check api/telegram-auth.js && node --check api/telegram-mcp.js && node --check api/aggregate.js && node --check public/app.js && node --check public/telegram-setup.js"
   },
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.20.2",
     "qrcode": "1.5.4",
-    "teleproto": "1.229.0"
+    "teleproto": "1.229.0",
+    "zod": "3.25.76"
   }
 }
