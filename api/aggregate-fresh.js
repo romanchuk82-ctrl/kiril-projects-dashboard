@@ -1,10 +1,13 @@
 import aggregateHandler, { applyTelegramTimeTrust } from './aggregate.js';
 
 const LIVE_URL='https://nakordoni.eu/api/v1/data/queue';
-const PROBE_TTL_MS=5*60*1000;
-const MAX_PROBES_PER_REQUEST=3;
+const PROBE_TTL_MS=10*60*1000;
+const MAX_PROBES_PER_REQUEST=2;
 const STALE_SOURCE_MIN=15;
+const LIVE_MIN_INTERVAL_MS=700;
 const probeCache=new Map();
+let liveStartGate=Promise.resolve();
+let nextLiveStartAt=0;
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const text=v=>typeof v==='string'&&v.trim()?v.trim():null;
@@ -90,10 +93,22 @@ function normalizeSnapshot(body){
   return{queueCars,waitMin,ageMin,updatedAt,waitStatus};
 }
 
+async function waitForLiveSlot(){
+  const prior=liveStartGate;
+  let release;
+  liveStartGate=new Promise(resolve=>{release=resolve});
+  await prior;
+  const delay=Math.max(0,nextLiveStartAt-Date.now());
+  if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+  nextLiveStartAt=Date.now()+LIVE_MIN_INTERVAL_MS;
+  release();
+}
+
 async function fetchLive(ppid,apiKey){
   const key=String(ppid||'');
   const cached=probeCache.get(key);
   if(cached&&Date.now()-cached.ts<PROBE_TTL_MS)return{...cached.value,fromCache:true};
+  await waitForLiveSlot();
   const ctl=new AbortController();
   const timer=setTimeout(()=>ctl.abort(),12000);
   let value;
@@ -190,17 +205,17 @@ export default async function handler(req,res){
 
   const details=[];
   let updated=0;
-  await Promise.all(candidates.map(async item=>{
+  for(const item of candidates){
     const before=latestNakordoniSource(item.row);
     const live=await fetchLive(item.row.ppid,apiKey);
     const detail={ppid:item.row.ppid,name:item.row.name,oldAgeMin:sourceAge(before),ok:live.ok,status:live.status||null,error:live.error||null,fromCache:Boolean(live.fromCache),newAgeMin:live.snapshot?.ageMin??null};
     details.push(detail);
-    if(!live.ok||!live.snapshot)return;
+    if(!live.ok||!live.snapshot)continue;
     const merged=mergeLive(rows[item.index],live.snapshot);
     if(merged.updated){rows[item.index]=merged.row;updated+=1;}
-  }));
+  }
 
   const finalRows=rows.map(enforceQueueConflict);
-  const nd={...(body.sourceStatus?.nakordoniDetails||{}),freshLiveSweep:true,freshLiveAttempted:candidates.length,freshLiveUpdated:updated,freshLiveDetails:details};
+  const nd={...(body.sourceStatus?.nakordoniDetails||{}),freshLiveSweep:true,freshLiveAttempted:candidates.length,freshLiveUpdated:updated,freshLiveDetails:details,rateLimitProtection:{maxPerSecond:2,minStartIntervalMs:LIVE_MIN_INTERVAL_MS,probeCacheMinutes:PROBE_TTL_MS/60000}};
   return res.status(200).json({...body,generatedAt:new Date().toISOString(),crossings:finalRows,sourceStatus:{...(body.sourceStatus||{}),nakordoniDetails:nd}});
 }
