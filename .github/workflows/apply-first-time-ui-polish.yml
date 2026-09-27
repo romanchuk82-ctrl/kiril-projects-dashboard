@@ -1,0 +1,42 @@
+name: Apply first-time UI polish
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - 'scripts/patch_first_time_ui_polish.py'
+      - '.github/workflows/apply-first-time-ui-polish.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Apply polish patch
+        run: python scripts/patch_first_time_ui_polish.py
+      - name: Verify
+        run: |
+          node --check public/app.js
+          npm test
+      - name: Commit polish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Polish first-time border monitor experience"
+          git pull --rebase origin border-monitor
+          git push origin HEAD:border-monitor
