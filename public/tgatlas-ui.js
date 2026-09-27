@@ -2,10 +2,47 @@
 (() => {
   const baseTelegramStatusLabel = telegramStatusLabel;
   const baseRender = render;
+  const baseHumanQueueState = humanQueueState;
+  const baseHumanConflictNote = humanConflictNote;
   const AUTO_REFRESH_MS = 60_000;
   const BATCH_SIZE = 4;
   let refreshRunning = false;
   let lastViewKey = '';
+
+  function conflictTelegramCue(row) {
+    if (row?.timeReliability !== 'conflict') return null;
+    const fresh = (row.sources || [])
+      .filter(src => src?.source === 'telegram' && src.ageMin != null && Number(src.ageMin) >= 0 && Number(src.ageMin) <= TG_TRUST_MAX_AGE)
+      .sort((a, b) => Number(a.ageMin) - Number(b.ageMin));
+
+    for (const src of fresh) {
+      const signal = telegramQualitativeSignal(src);
+      if (signal === 'low') {
+        const raw = String(src.note || '').toLowerCase();
+        const exactNoQueue = /(без черги|нема черги|немає черги|черги нема|черги немає|пусто|нікого|нуль)/u.test(raw);
+        return { kind: 'low', text: exactNoQueue ? 'Telegram: черги немає' : 'Telegram: майже без черги' };
+      }
+      if (signal === 'high') return { kind: 'high', text: 'Telegram: повідомляють про значну чергу' };
+    }
+
+    if (row.telegramWaitMin != null) return { kind: 'time', text: `Telegram: ${fmtWait(row.telegramWaitMin)}` };
+    return { kind: 'generic', text: 'Джерела розходяться' };
+  }
+
+  humanQueueState = function(row) {
+    const cue = conflictTelegramCue(row);
+    if (cue) return { tone: 'tone-yellow', icon: '⚠️', label: `${cue.text} · джерела розходяться` };
+    return baseHumanQueueState(row);
+  };
+
+  humanConflictNote = function(row) {
+    const cue = conflictTelegramCue(row);
+    if (!cue) return baseHumanConflictNote(row);
+    if (cue.kind === 'low') return '⚠️ Базова оцінка часу і свіже повідомлення Telegram суперечать одне одному. Час у картці — базовий орієнтир; Telegram окремо повідомляє, що черги немає або вона мінімальна.';
+    if (cue.kind === 'high') return '⚠️ Базова оцінка і свіжий Telegram суперечать одне одному. Не зводимо їх до одного кольорового висновку — нижче видно обидва джерела.';
+    if (cue.kind === 'time') return `⚠️ Базова оцінка часу не збігається зі свіжим Telegram (${fmtWait(row.telegramWaitMin)}). Показуємо обидва значення окремо.`;
+    return '⚠️ Свіжі джерела суперечать одне одному. Показуємо їх окремо без єдиного висновку.';
+  };
 
   telegramStatusLabel = function(status, details) {
     const count = details?.totalSources ? ` ${details.connectedSources || 0}/${details.totalSources}` : '';
