@@ -91,7 +91,7 @@ async function serveStatic(req, res, filePath) {
     let data = await fs.readFile(fullPath);
     if (filePath === 'app.js') {
       const addons = [];
-      for (const addonName of ['tgatlas-ui.js', 'source-breakdown-ui.js']) {
+      for (const addonName of ['tgatlas-ui.js', 'source-breakdown-ui.js', 'quick-orient-ui.js']) {
         try {
           addons.push(await fs.readFile(path.join(publicDir, addonName)));
         } catch {}
