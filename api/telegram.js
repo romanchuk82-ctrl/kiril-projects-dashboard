@@ -374,7 +374,8 @@ async function fetchSource(source, force = false) {
     const result = {
       source, items, status: 'connected', messagesScanned: messages.length,
       newestMessageAt: timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : null,
-      peerId: peer.id
+      peerId: peer.id,
+      recentMessages: [...messages].sort((a,b)=>messageTimestampMs(b)-messageTimestampMs(a)).slice(0,20).map(m=>({id:m.id,date:Number.isFinite(messageTimestampMs(m))?new Date(messageTimestampMs(m)).toISOString():null,text:messageText(m),replyToMsgId:m.replyToMsgId||null}))
     };
     sourceCache.set(key, { ts: Date.now(), result });
     return result;
@@ -464,6 +465,7 @@ function buildPayload(results = [], requested = null) {
     requested,
     items,
     sources: allResults.map(result => sourceMeta(result, configured ? 'available' : 'missing_credentials')),
+    ...(requested && requested !== 'full' ? { recentMessages: byUser.get(String(requested).toLowerCase())?.recentMessages || [] } : {}),
     quota: quotaState.remaining == null ? null : quotaState
   };
 }
