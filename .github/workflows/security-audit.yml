@@ -1,0 +1,40 @@
+name: Security audit
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - 'api/**'
+      - 'public/**'
+      - 'server.source.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'test/**'
+      - '.github/workflows/security-audit.yml'
+  pull_request:
+    branches: [border-monitor]
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - name: Verify production source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RInE --exclude='server.bundle.cjs' --exclude='package-lock.json' '-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----|sk-[A-Za-z0-9_-]{20,}' api public scripts server.source.js
+          ! grep -RInE '<script>[[:space:]]*[^<]|<style[ >]| on[a-z]+=' public/index.html
+          ! grep -RInE 'refresh=1|/snapshot\?' public
