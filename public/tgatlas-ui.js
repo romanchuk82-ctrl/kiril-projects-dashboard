@@ -4,13 +4,73 @@
   const baseRender = render;
   const baseHumanQueueState = humanQueueState;
   const baseHumanConflictNote = humanConflictNote;
+  const baseComparisonFor = comparisonFor;
+  const baseEstimateText = estimateText;
+  const baseRecomputeTimeTrust = recomputeTimeTrust;
   const AUTO_REFRESH_MS = 60_000;
   const BATCH_SIZE = 4;
   let refreshRunning = false;
   let lastViewKey = '';
 
+  function queueConflictSummary(row) {
+    const baseQueueRaw = row?.queueCars != null ? Number(row.queueCars) : NaN;
+    if (!Number.isFinite(baseQueueRaw) || baseQueueRaw < 0) return null;
+    const baseQueue = Math.round(baseQueueRaw);
+    const fresh = (row.sources || [])
+      .filter(src => src?.source === 'telegram' && src.ageMin != null && Number(src.ageMin) >= 0 && Number(src.ageMin) <= TG_TRUST_MAX_AGE)
+      .sort((a, b) => Number(a.ageMin) - Number(b.ageMin));
+
+    const observations = fresh.map(src => ({
+      src,
+      q: telegramQueueCount(src),
+      signal: telegramQualitativeSignal(src)
+    })).filter(x => x.q != null || x.signal);
+    const latest = observations[0];
+    if (!latest) return null;
+
+    const tgQueue = latest.q != null ? Math.max(0, Math.round(Number(latest.q))) : null;
+    const tgSignal = latest.signal || null;
+    const baseLow = baseQueue <= 3;
+    const baseHigh = baseQueue >= 10;
+    const telegramLow = tgSignal === 'low' || (tgQueue != null && tgQueue <= 3);
+    const telegramHigh = tgSignal === 'high' || (tgQueue != null && tgQueue >= 10);
+
+    if ((baseLow && telegramHigh) || (baseHigh && telegramLow)) {
+      return {
+        baseQueue,
+        tgQueue,
+        tgSignal,
+        ageMin: Number(latest.src.ageMin),
+        source: latest.src
+      };
+    }
+    return null;
+  }
+
+  recomputeTimeTrust = function(row) {
+    const out = baseRecomputeTimeTrust(row);
+    const queueConflict = queueConflictSummary(out);
+    if (queueConflict) {
+      out.timeReliable = false;
+      out.timeReliability = 'conflict';
+      out.sourceConflictType = 'queue';
+      out.sourceConflict = queueConflict;
+      out.confidence = 'low';
+      const tgText = queueConflict.tgQueue != null ? `${queueConflict.tgQueue} авто` : (queueConflict.tgSignal === 'high' ? 'значну чергу' : 'майже без черги');
+      out.timeReliabilityReason = `Кількість авто не збігається: базове джерело ${queueConflict.baseQueue}, Telegram ${tgText}`;
+    }
+    return out;
+  };
+
   function conflictTelegramCue(row) {
     if (row?.timeReliability !== 'conflict') return null;
+    if (row?.sourceConflictType === 'queue' && row?.sourceConflict) {
+      const c = row.sourceConflict;
+      if (c.tgQueue != null) return { kind: c.tgQueue >= 10 ? 'high' : 'low', text: `Telegram: ${c.tgQueue} авто`, queueConflict: c };
+      if (c.tgSignal === 'high') return { kind: 'high', text: 'Telegram: повідомляють про значну чергу', queueConflict: c };
+      if (c.tgSignal === 'low') return { kind: 'low', text: 'Telegram: черги немає / майже немає', queueConflict: c };
+    }
+
     const fresh = (row.sources || [])
       .filter(src => src?.source === 'telegram' && src.ageMin != null && Number(src.ageMin) >= 0 && Number(src.ageMin) <= TG_TRUST_MAX_AGE)
       .sort((a, b) => Number(a.ageMin) - Number(b.ageMin));
@@ -38,10 +98,24 @@
   humanConflictNote = function(row) {
     const cue = conflictTelegramCue(row);
     if (!cue) return baseHumanConflictNote(row);
+    if (row?.sourceConflictType === 'queue' && row?.sourceConflict) {
+      const c = row.sourceConflict;
+      const tg = c.tgQueue != null ? `${c.tgQueue} авто` : (c.tgSignal === 'high' ? 'значну чергу' : 'черги немає / майже немає');
+      return `⚠️ Джерела суперечать одне одному: базове джерело показує ${c.baseQueue} авто, а свіжий Telegram — ${tg}. Не визначаємо єдиний стан черги.`;
+    }
     if (cue.kind === 'low') return '⚠️ Базова оцінка часу і свіже повідомлення Telegram суперечать одне одному. Час у картці — базовий орієнтир; Telegram окремо повідомляє, що черги немає або вона мінімальна.';
     if (cue.kind === 'high') return '⚠️ Базова оцінка і свіжий Telegram суперечать одне одному. Не зводимо їх до одного кольорового висновку — нижче видно обидва джерела.';
     if (cue.kind === 'time') return `⚠️ Базова оцінка часу не збігається зі свіжим Telegram (${fmtWait(row.telegramWaitMin)}). Показуємо обидва значення окремо.`;
     return '⚠️ Свіжі джерела суперечать одне одному. Показуємо їх окремо без єдиного висновку.';
+  };
+
+  estimateText = function(row) {
+    if (row?.timeReliability === 'conflict' && row?.sourceConflictType === 'queue' && displayTimeMin(row) == null) return '⚠️ різні дані';
+    return baseEstimateText(row);
+  };
+
+  comparisonFor = function(rows) {
+    return baseComparisonFor((rows || []).filter(row => row?.timeReliability !== 'conflict'));
   };
 
   telegramStatusLabel = function(status, details) {
@@ -102,6 +176,12 @@
     }
   }
 
+  function normalizeVisibleRows() {
+    for (const row of state.rows || []) {
+      if (typeof recomputeTimeTrust === 'function') recomputeTimeTrust(row);
+    }
+  }
+
   async function refreshVisibleTelegram() {
     if (refreshRunning || document.hidden) return;
     const rows = typeof currentRows === 'function' ? currentRows() : state.rows;
@@ -112,6 +192,7 @@
       for (let i = 0; i < channels.length; i += BATCH_SIZE) {
         await Promise.all(channels.slice(i, i + BATCH_SIZE).map(loadTelegram));
       }
+      normalizeVisibleRows();
       baseRender();
     } finally {
       refreshRunning = false;
@@ -126,6 +207,7 @@
   }
 
   render = function() {
+    normalizeVisibleRows();
     baseRender();
     scheduleForCurrentView();
   };
@@ -147,7 +229,10 @@
       if (now - (forcedAt.get(key) || 0) < 15_000) return;
       forcedAt.set(key, now);
       const ok = await loadTelegram(channel);
-      if (ok) baseRender();
+      if (ok) {
+        normalizeVisibleRows();
+        baseRender();
+      }
     }, 0);
   });
 
