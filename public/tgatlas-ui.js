@@ -31,10 +31,11 @@
     };
   }
 
-  async function loadTelegram(channel) {
+  async function loadTelegram(channel, force = false) {
     if (!channel) return false;
     try {
-      const response = await fetch(`/snapshot?username=${encodeURIComponent(channel)}`, { cache: 'no-store' });
+      const refresh = force ? '&refresh=1' : '';
+      const response = await fetch(`/snapshot?username=${encodeURIComponent(channel)}${refresh}`, { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'telegram_error');
       const key = channel.toLowerCase();
@@ -92,6 +93,27 @@
     baseRender();
     scheduleForCurrentView();
   };
+
+  const forcedAt = new Map();
+  const crossingList = document.getElementById('crossingList');
+  crossingList?.addEventListener('click', event => {
+    const summary = event.target.closest?.('summary.compact-crossing-summary');
+    if (!summary) return;
+    const details = summary.closest('details.crossing-collapsible');
+    setTimeout(async () => {
+      if (!details?.open) return;
+      const title = summary.querySelector('.crossing-title')?.textContent?.trim() || '';
+      const row = state.rows.find(item => item?.name && title.includes(String(item.name)));
+      const channel = row?.telegramChat?.channel;
+      if (!channel) return;
+      const key = String(channel).toLowerCase();
+      const now = Date.now();
+      if (now - (forcedAt.get(key) || 0) < 15_000) return;
+      forcedAt.set(key, now);
+      const ok = await loadTelegram(channel, true);
+      if (ok) baseRender();
+    }, 0);
+  });
 
   setInterval(refreshVisibleTelegram, AUTO_REFRESH_MS);
   document.addEventListener('visibilitychange', () => {

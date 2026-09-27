@@ -4,6 +4,7 @@ const MESSAGE_LIMIT = 60;
 const MAX_REPORTS_PER_DIRECTION = 3;
 const CONCURRENCY = 1;
 const REQUEST_TIMEOUT_MS = 20_000;
+const CONTEXT_DIRECTION_MAX_GAP_MS = 45 * 60 * 1000;
 
 const peerCache = new Map();
 const sourceCache = new Map();
@@ -121,6 +122,22 @@ function signalLike(text) {
   return /черг|очеред|кордон|границ|кпп|пункт пропуск|авто|машин|територ|зелени|червон|проїх|проех|пройш|прошл|стої|стоим|стою|чека|жду|очіку|одразу|відразу|сразу|вільн|свобод/i.test(String(text || ''));
 }
 
+function questionLike(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return false;
+  if (/[?？]/.test(raw)) return true;
+  const normalized = clean(raw);
+  return /(?:^|\s)(?:підкажіть|підкажи|підскажіть|подскажите|скажіть|скажи|скажите|хто\s+знає|кто\s+знает|яка|який|які|какая|какой|какие|скільки|сколько)(?:\s|$)/u.test(normalized);
+}
+
+function directionFromPair(text, replyText) {
+  const fromMessage = inferDirection(text);
+  if (fromMessage) return { direction: fromMessage, basis: 'message' };
+  const fromReply = replyText ? inferDirection(replyText) : null;
+  if (fromReply) return { direction: fromReply, basis: 'reply' };
+  return null;
+}
+
 function messageText(message) {
   return String(message?.rawText || message?.message || message?.text || message?.caption || message?.richText || '').replace(/\s+/g, ' ').trim();
 }
@@ -133,23 +150,25 @@ function messageTimestampMs(message) {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
-export function parseTelegramMessage(message, replyMessage, source, nowMs = Date.now()) {
+export function parseTelegramMessage(message, replyMessage, source, nowMs = Date.now(), contextDirection = null) {
   const text = messageText(message);
   if (!text) return null;
   const replyText = messageText(replyMessage);
   const checkpoint = source.kind === 'checkpoint_chat' ? source : findCheckpoint(`${text}\n${replyText}`);
   if (!checkpoint) return null;
-  let direction = inferDirection(text);
-  let directionBasis = direction ? 'message' : null;
-  if (!direction && replyText) {
-    direction = inferDirection(replyText);
-    if (direction) directionBasis = 'reply';
+  const direct = directionFromPair(text, replyText);
+  let direction = direct?.direction || null;
+  let directionBasis = direct?.basis || null;
+  if (!direction && source.kind === 'checkpoint_chat' && contextDirection?.direction) {
+    direction = contextDirection.direction;
+    directionBasis = 'context';
   }
   if (!direction) return null;
   const timestampMs = messageTimestampMs(message);
   if (!Number.isFinite(timestampMs)) return null;
   const ageMin = Math.max(0, Math.round((nowMs - timestampMs) / 60_000));
   if (ageMin > MAX_AGE_MIN) return null;
+  if (questionLike(text)) return null;
   const waitMin = parseWaitMin(text);
   const queueCars = parseQueueCars(text);
   if (waitMin == null && queueCars == null && !signalLike(text)) return null;
@@ -295,7 +314,20 @@ async function fetchSource(source, force = false) {
     const messages = (Array.isArray(body?.messages) ? body.messages : []).map(normalizeMessage).filter(m => Number.isInteger(m.id) && m.id > 0);
     const byId = new Map(messages.map(m => [m.id, m]));
     const nowMs = Date.now();
-    const items = messages.map(message => parseTelegramMessage(message, byId.get(message.replyToMsgId), source, nowMs)).filter(Boolean);
+    const chronological = [...messages].sort((a, b) => messageTimestampMs(a) - messageTimestampMs(b));
+    const items = [];
+    let contextDirection = null;
+    for (const message of chronological) {
+      const replyMessage = byId.get(message.replyToMsgId);
+      const timestampMs = messageTimestampMs(message);
+      const direct = directionFromPair(messageText(message), messageText(replyMessage));
+      if (direct?.direction && Number.isFinite(timestampMs)) contextDirection = { direction: direct.direction, ts: timestampMs };
+      const context = contextDirection && Number.isFinite(timestampMs) && timestampMs >= contextDirection.ts && timestampMs - contextDirection.ts <= CONTEXT_DIRECTION_MAX_GAP_MS
+        ? contextDirection
+        : null;
+      const parsed = parseTelegramMessage(message, replyMessage, source, nowMs, context);
+      if (parsed) items.push(parsed);
+    }
     const timestamps = messages.map(messageTimestampMs).filter(Number.isFinite);
     const result = {
       source, items, status: 'connected', messagesScanned: messages.length,
