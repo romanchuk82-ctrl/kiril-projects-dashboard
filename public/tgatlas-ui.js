@@ -5,12 +5,39 @@
   const baseHumanQueueState = humanQueueState;
   const baseHumanConflictNote = humanConflictNote;
   const baseComparisonFor = comparisonFor;
+  const baseRankable = rankable;
   const baseEstimateText = estimateText;
   const baseRecomputeTimeTrust = recomputeTimeTrust;
   const AUTO_REFRESH_MS = 60_000;
   const BATCH_SIZE = 4;
   let refreshRunning = false;
   let lastViewKey = '';
+
+  function directWaitQueueConflict(row) {
+    const waitRaw = row?.baseWaitMin != null ? Number(row.baseWaitMin) : Number(row?.waitMin);
+    const queueRaw = row?.queueCars != null ? Number(row.queueCars) : NaN;
+    if (!Number.isFinite(waitRaw) || !Number.isFinite(queueRaw) || waitRaw < 0 || queueRaw < 0) return null;
+
+    const waitMin = Math.round(waitRaw);
+    const queueCars = Math.round(queueRaw);
+    const contradictory = (queueCars <= 3 && waitMin >= 60) || (queueCars >= 15 && waitMin <= 20);
+    if (!contradictory) return null;
+
+    const waitAge = Number.isFinite(Number(row?.waitAgeMin)) ? Number(row.waitAgeMin) : (Number.isFinite(Number(row?.ageMin)) ? Number(row.ageMin) : null);
+    const queueAge = Number.isFinite(Number(row?.queueAgeMin)) ? Number(row.queueAgeMin) : null;
+    return {
+      waitMin,
+      queueCars,
+      waitAgeMin: waitAge,
+      queueAgeMin: queueAge,
+      waitUpdatedAt: row?.waitUpdatedAt || row?.updatedAt || null,
+      queueUpdatedAt: row?.queueUpdatedAt || null,
+      waitSource: null,
+      waitSourceLabel: null,
+      queueSource: row?.queueSource || null,
+      queueSourceLabel: null
+    };
+  }
 
   function queueConflictSummary(row) {
     const baseQueueRaw = row?.queueCars != null ? Number(row.queueCars) : NaN;
@@ -66,6 +93,18 @@
       out.timeReliabilityReason = saved.reason;
       out.queueConflict = saved.queueConflict;
       out.confidence = 'low';
+      return out;
+    }
+
+    const directConflict = directWaitQueueConflict(out);
+    if (directConflict) {
+      out.timeReliable = false;
+      out.timeReliability = 'conflict';
+      out.sourceConflictType = 'wait_queue';
+      out.sourceConflict = directConflict;
+      out.queueConflict = true;
+      out.confidence = 'low';
+      out.timeReliabilityReason = `Кількість авто (${directConflict.queueCars}) суперечить оцінці часу ${directConflict.waitMin} хв`;
       return out;
     }
 
@@ -141,7 +180,7 @@
       const c = row.sourceConflict;
       const queueAge = c.queueAgeMin != null ? fmtAge(c.queueAgeMin) : 'час невідомий';
       const waitAge = c.waitAgeMin != null ? fmtAge(c.waitAgeMin) : 'час невідомий';
-      return `⚠️ Показники мають різну свіжість і суперечать одне одному: ${c.queueCars} авто (${queueAge}), але оцінка часу ≈ ${fmtWait(c.waitMin)} (${waitAge}). Не використовуємо цей КПП як надійний швидкий орієнтир.`;
+      return `⚠️ Показники суперечать одне одному: ${c.queueCars} авто (${queueAge}), але оцінка часу ≈ ${fmtWait(c.waitMin)} (${waitAge}). Не використовуємо цей КПП як надійний швидкий орієнтир.`;
     }
 
     if (row?.sourceConflictType === 'queue' && row?.sourceConflict) {
@@ -158,6 +197,10 @@
   estimateText = function(row) {
     if (row?.timeReliability === 'conflict' && ['queue', 'wait_queue', 'queue_sources'].includes(row?.sourceConflictType)) return '⚠️ різні дані';
     return baseEstimateText(row);
+  };
+
+  rankable = function(rows) {
+    return baseRankable((rows || []).filter(row => row?.timeReliability !== 'conflict'));
   };
 
   comparisonFor = function(rows) {
