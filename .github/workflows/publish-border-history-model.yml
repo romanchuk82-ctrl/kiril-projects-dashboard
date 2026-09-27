@@ -1,6 +1,10 @@
 name: Publish Border History Read Model
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-border-history-model.yml'
   schedule:
     - cron: '11 * * * *'
   workflow_dispatch:
