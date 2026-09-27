@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeTelegram } from '../api/aggregate.js';
+import { mergeTelegram, mergeNakordoniWebRows } from '../api/aggregate.js';
 
 test('Moldova checkpoint chats remain visible even without fresh messages', () => {
   const chat = {
@@ -58,4 +58,45 @@ test('checkpoint chats with a shared city alias stay as separate cards', () => {
   const rows = mergeTelegram([], [], 'UA_EU', chats);
   assert.equal(rows.length, 2);
   assert.deepEqual(rows.map(row => row.telegramChat.channel).sort(), ['bilacerkvasigetumarmatiei', 'solotkino']);
+});
+
+
+test('Nakordoni freshness merge promotes newer public-page data', () => {
+  const api = [{
+    id: 'api-grushiv', ppid: 'id_10', name: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL',
+    direction: 'UA_EU', waitMin: 15, queueCars: 0, ageMin: 55,
+    updatedAt: '2026-09-27T05:23:00.000Z', stale: false, confidence: 'medium',
+    sources: [{ source: 'nakordoni', label: 'Nakordoni', value: 15, updatedAt: '2026-09-27T05:23:00.000Z', ageMin: 55 }]
+  }];
+  const web = [{
+    id: 'web-grushiv', ppid: 'id_10', name: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL',
+    direction: 'UA_EU', waitMin: 5, queueCars: 0, ageMin: 4,
+    updatedAt: '2026-09-27T06:14:00.000Z', stale: false, confidence: 'medium',
+    sources: [{ source: 'nakordoni', label: 'Nakordoni · web fallback', value: 5, updatedAt: '2026-09-27T06:14:00.000Z', ageMin: 4 }]
+  }];
+  const merged = mergeNakordoniWebRows(api, web);
+  assert.equal(merged.added, 1);
+  assert.equal(merged.rows[0].waitMin, 5);
+  assert.equal(merged.rows[0].updatedAt, '2026-09-27T06:14:00.000Z');
+  assert.equal(merged.rows[0].id, 'api-grushiv');
+  assert.equal(merged.rows[0].sources.length, 2);
+});
+
+test('Nakordoni freshness merge keeps newer API data but still exposes web source', () => {
+  const api = [{
+    id: 'api-grushiv', name: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL',
+    direction: 'UA_EU', waitMin: 7, queueCars: 1, ageMin: 2,
+    updatedAt: '2026-09-27T06:16:00.000Z', stale: false,
+    sources: [{ source: 'nakordoni', label: 'Nakordoni', value: 7, updatedAt: '2026-09-27T06:16:00.000Z', ageMin: 2 }]
+  }];
+  const web = [{
+    id: 'web-grushiv', name: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL',
+    direction: 'UA_EU', waitMin: 15, queueCars: 0, ageMin: 55,
+    updatedAt: '2026-09-27T05:23:00.000Z', stale: false,
+    sources: [{ source: 'nakordoni', label: 'Nakordoni · web fallback', value: 15, updatedAt: '2026-09-27T05:23:00.000Z', ageMin: 55 }]
+  }];
+  const merged = mergeNakordoniWebRows(api, web);
+  assert.equal(merged.added, 0);
+  assert.equal(merged.rows[0].waitMin, 7);
+  assert.equal(merged.rows[0].sources.length, 2);
 });
