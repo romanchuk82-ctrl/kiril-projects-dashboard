@@ -1,6 +1,6 @@
 name: Diagnose Hryshiv Telegram
 
-# Re-run after Telegram context fix 2026-09-27
+# Inspect raw recent messages after parser fix 2026-09-27
 on:
   push:
     branches: [border-monitor]
@@ -21,5 +21,5 @@ jobs:
           const x=JSON.parse(fs.readFileSync('/tmp/hryshiv.json','utf8'));
           const src=(x.sources||[]).find(s=>String(s.channel||'').toLowerCase()==='hryshiv')||{};
           const items=(x.items||[]).filter(i=>String(i.source_channel||'').toLowerCase()==='hryshiv');
-          console.log(JSON.stringify({generatedAt:x.generatedAt,status:x.status,source:{status:src.status,messagesScanned:src.messagesScanned,newestMessageAt:src.newestMessageAt,items:src.items,error:src.error},items:items.map(i=>({id:i.message_id,updated_at:i.updated_at,age_min:i.age_min,direction:i.direction,wait_min:i.wait_min,queue_cars:i.queue_cars,note:i.note,reply_context:i.reply_context,direction_basis:i.direction_basis,source_url:i.source_url}))},null,2));
+          console.log(JSON.stringify({generatedAt:x.generatedAt,status:x.status,source:{status:src.status,messagesScanned:src.messagesScanned,newestMessageAt:src.newestMessageAt,items:src.items,error:src.error},recentMessages:(x.recentMessages||[]).slice(0,20),items:items.map(i=>({id:i.message_id,updated_at:i.updated_at,age_min:i.age_min,direction:i.direction,wait_min:i.wait_min,queue_cars:i.queue_cars,note:i.note,reply_context:i.reply_context,direction_basis:i.direction_basis,source_url:i.source_url}))},null,2));
           NODE
