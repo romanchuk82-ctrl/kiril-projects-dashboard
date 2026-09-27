@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>Історія · Border Monitor UA</title>
+  <link rel="stylesheet" href="/section-nav.css?v=20260927-history1" />
+  <link rel="stylesheet" href="/history.css?v=20260927-history1" />
+</head>
+<body>
+  <div class="history-shell">
+    <header class="history-top">
+      <div>
+        <div class="eyebrow">BORDER HISTORY</div>
+        <h1>Історія черг</h1>
+        <p class="subtitle">Окремий від Live розділ для накопичення історії, пошуку типових піків і майбутніх рекомендацій щодо часу та КПП.</p>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Розділи Border Monitor">
+      <a href="/">Live</a>
+      <a class="active" href="/history" aria-current="page">Історія</a>
+    </nav>
+
+    <section class="status-card">
+      <div>
+        <div class="status-title">Накопичення історії</div>
+        <div id="historyStatusNote" class="status-note">Готуємо перший контрольний зріз.</div>
+        <div id="loadStatus" class="status-note">Завантаження…</div>
+      </div>
+      <div id="historyStatusBadge" class="status-badge">СТАРТ</div>
+    </section>
+
+    <section class="filters" aria-label="Фільтри історії">
+      <div class="filter"><label for="directionFilter">Напрямок</label><select id="directionFilter" data-history-filter="direction"><option value="UA_EU">🇺🇦 → 🇪🇺 З України</option><option value="EU_UA">🇪🇺 → 🇺🇦 В Україну</option></select></div>
+      <div class="filter"><label for="countryFilter">Країна</label><select id="countryFilter" data-history-filter="country"><option value="ALL">Усі країни</option><option value="PL">🇵🇱 Польща</option><option value="SK">🇸🇰 Словаччина</option><option value="HU">🇭🇺 Угорщина</option><option value="RO">🇷🇴 Румунія</option><option value="MD">🇲🇩 Молдова</option></select></div>
+      <div class="filter"><label for="periodFilter">Період</label><select id="periodFilter" data-history-filter="days"><option value="7">7 днів</option><option value="30" selected>30 днів</option><option value="90">90 днів</option></select></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Поточний зріз</h2>
+        <div class="metric-grid">
+          <div class="metric"><span>Зрізів</span><strong id="metricSnapshots">0</strong></div>
+          <div class="metric"><span>Середнє</span><strong id="metricAvg">—</strong></div>
+          <div class="metric"><span>Медіана</span><strong id="metricMedian">—</strong></div>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+      <div class="panel">
+        <h2>Що будемо бачити з історії</h2>
+        <div class="recommendation">
+          <div class="rec-item"><b>Коли краще їхати</b><p>Типові години з найменшим очікуванням окремо для кожного напрямку.</p></div>
+          <div class="rec-item"><b>Дні з піками</b><p>Порівняння буднів, вихідних, свят і сезонних періодів.</p></div>
+          <div class="rec-item"><b>Альтернативний КПП</b><p>Порада, коли додаткові кілометри реально економлять час на кордоні.</p></div>
+          <div class="rec-item"><b>Якість прогнозу</b><p>Порівняння попередніх оцінок із фактичною динамікою черг.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="recommend-card">
+      <h2>Рекомендації за історією</h2>
+      <div id="recommendations" class="recommend-empty">Потрібно накопичити достатньо спостережень.</div>
+    </section>
+
+    <div class="foot">Live працює окремо. Помилка або відсутність історичного сховища не повинна впливати на поточні дані.</div>
+  </div>
+  <script type="module" src="/history.js?v=20260927-history1"></script>
+</body>
+</html>
