@@ -32,7 +32,8 @@ function setSecurityHeaders(res) {
 }
 
 function clientIp(req) {
-  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const chain = String(req.headers['x-forwarded-for'] || '').split(',').map(v => v.trim()).filter(Boolean);
+  const forwarded = chain.length ? chain[chain.length - 1] : '';
   return (forwarded || req.socket.remoteAddress || 'unknown').slice(0, 128);
 }
 
