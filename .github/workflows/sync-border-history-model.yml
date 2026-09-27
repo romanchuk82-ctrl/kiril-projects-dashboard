@@ -1,0 +1,65 @@
+name: Sync Border History read model
+
+on:
+  schedule:
+    - cron: '10 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-border-history-model.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: border-history-read-model
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout durable data branch
+        uses: actions/checkout@v4
+        with:
+          ref: border-history-data
+          fetch-depth: 0
+
+      - name: Fetch current read model
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          curl --fail --silent --show-error \
+            --retry 4 --retry-delay 15 --retry-all-errors \
+            --connect-timeout 20 --max-time 120 \
+            'https://border-monitor-history-app.onrender.com/api/export' \
+            -o "$tmp"
+          python - "$tmp" <<'PY'
+          import json,sys
+          p=sys.argv[1]
+          with open(p,encoding='utf-8') as f:
+              data=json.load(f)
+          if not isinstance(data,dict) or not isinstance(data.get('catalog'),list) or not isinstance(data.get('datasets'),dict):
+              raise SystemExit('Invalid history read model')
+          if len(data['catalog']) < 10 or len(data['datasets']) < 10:
+              raise SystemExit('History read model unexpectedly small')
+          print(f"validated catalog={len(data['catalog'])} datasets={len(data['datasets'])} generatedAt={data.get('generatedAt')}")
+          PY
+          mv "$tmp" history-model.json
+
+      - name: Commit only when model changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add history-model.json
+          if git diff --cached --quiet; then
+            echo 'History model unchanged'
+            exit 0
+          fi
+          git commit -m 'Update Border History read model'
+          git pull --rebase origin border-history-data
+          git push origin HEAD:border-history-data
