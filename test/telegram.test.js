@@ -86,3 +86,27 @@ test('deduplicates message ids and limits each checkpoint direction to three rep
   assert.equal(result.length, 3);
   assert.deepEqual(result.map(item => item.message_id), [100, 101, 102]);
 });
+
+
+test('strong directionless queue statement may reuse older checkpoint context', async () => {
+  const { parseTelegramMessage } = await import('../api/telegram.js');
+  const now = Date.parse('2026-09-27T06:50:00.000Z');
+  const source = { kind:'checkpoint_chat', checkpoint:'Грушів - Будоміж', country:'Польща', countryCode:'PL', label:'Грушів - Будоміж', username:'hryshiv', channelUrl:'https://t.me/hryshiv' };
+  const message = { id:270999, date:'2026-09-27T06:44:13.000Z', message:'Черги немає' };
+  const context = { direction:'UA_EU', ts:Date.parse('2026-09-27T05:23:28.000Z'), queueIntent:false };
+  const parsed = parseTelegramMessage(message, null, source, now, context);
+  assert.ok(parsed);
+  assert.equal(parsed.direction, 'UA_EU');
+  assert.equal(parsed.direction_basis, 'context');
+  assert.equal(parsed.note, 'Черги немає');
+});
+
+test('generic directionless message does not reuse old checkpoint context', async () => {
+  const { parseTelegramMessage } = await import('../api/telegram.js');
+  const now = Date.parse('2026-09-27T06:50:00.000Z');
+  const source = { kind:'checkpoint_chat', checkpoint:'Грушів - Будоміж', country:'Польща', countryCode:'PL', label:'Грушів - Будоміж', username:'hryshiv', channelUrl:'https://t.me/hryshiv' };
+  const message = { id:271000, date:'2026-09-27T06:44:13.000Z', message:'Тільки в кордоні' };
+  const context = { direction:'UA_EU', ts:Date.parse('2026-09-27T05:23:28.000Z'), queueIntent:false };
+  const parsed = parseTelegramMessage(message, null, source, now, context);
+  assert.equal(parsed, null);
+});

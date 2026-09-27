@@ -5,6 +5,7 @@ const MAX_REPORTS_PER_DIRECTION = 3;
 const CONCURRENCY = 1;
 const REQUEST_TIMEOUT_MS = 20_000;
 const CONTEXT_DIRECTION_MAX_GAP_MS = 45 * 60 * 1000;
+const CONTEXT_DIRECTION_STRONG_SIGNAL_MAX_GAP_MS = 120 * 60 * 1000;
 
 const peerCache = new Map();
 const sourceCache = new Map();
@@ -122,6 +123,13 @@ function signalLike(text) {
   return /черг|очеред|кордон|границ|кпп|пункт пропуск|авто|машин|територ|зелени|червон|проїх|проех|пройш|прошл|стої|стоим|стою|чека|жду|очіку|одразу|відразу|сразу|вільн|свобод/i.test(String(text || ''));
 }
 
+export function strongQueueStatement(text) {
+  const raw = String(text || '').trim();
+  if (!raw || questionLike(raw)) return false;
+  const normalized = clean(raw);
+  return /(без черги|нема черги|немає черги|черги нема|черги немає|очереди нет|без очереди|пусто|вільно|свободно|одразу|відразу|сразу|велика черга|довга черга|черга велика|черга довга|большая очередь|длинная очередь)/u.test(normalized);
+}
+
 function questionLike(text) {
   const raw = String(text || '').trim();
   if (!raw) return false;
@@ -183,18 +191,24 @@ export function parseTelegramMessage(message, replyMessage, source, nowMs = Date
   const direct = directionFromPair(text, replyText);
   let direction = direct?.direction || null;
   let directionBasis = direct?.basis || null;
-  if (!direction && source.kind === 'checkpoint_chat' && contextDirection?.direction) {
-    direction = contextDirection.direction;
+  const timestampMs = messageTimestampMs(message);
+  if (!Number.isFinite(timestampMs)) return null;
+  let effectiveContext = null;
+  if (contextDirection?.direction && Number.isFinite(Number(contextDirection?.ts))) {
+    const gapMs = timestampMs - Number(contextDirection.ts);
+    const maxGapMs = strongQueueStatement(text) ? CONTEXT_DIRECTION_STRONG_SIGNAL_MAX_GAP_MS : CONTEXT_DIRECTION_MAX_GAP_MS;
+    if (gapMs >= 0 && gapMs <= maxGapMs) effectiveContext = contextDirection;
+  }
+  if (!direction && source.kind === 'checkpoint_chat' && effectiveContext?.direction) {
+    direction = effectiveContext.direction;
     directionBasis = 'context';
   }
   if (!direction) return null;
-  const timestampMs = messageTimestampMs(message);
-  if (!Number.isFinite(timestampMs)) return null;
   const ageMin = Math.max(0, Math.round((nowMs - timestampMs) / 60_000));
   if (ageMin > MAX_AGE_MIN) return null;
   if (questionLike(text)) return null;
   const waitMin = parseWaitMin(text);
-  const queueCars = parseQueueCars(text) ?? parseContextQueueCars(text, replyText, contextDirection);
+  const queueCars = parseQueueCars(text) ?? parseContextQueueCars(text, replyText, effectiveContext);
   if (advertisementLike(text) && waitMin == null && queueCars == null) return null;
   if (waitMin == null && queueCars == null && !signalLike(text)) return null;
   const id = Number(message?.id);
@@ -353,10 +367,7 @@ async function fetchSource(source, force = false) {
       } else if (contextDirection && queueQuestionLike(text) && Number.isFinite(timestampMs)) {
         contextDirection = { ...contextDirection, ts: timestampMs, queueIntent: true };
       }
-      const context = contextDirection && Number.isFinite(timestampMs) && timestampMs >= contextDirection.ts && timestampMs - contextDirection.ts <= CONTEXT_DIRECTION_MAX_GAP_MS
-        ? contextDirection
-        : null;
-      const parsed = parseTelegramMessage(message, replyMessage, source, nowMs, context);
+      const parsed = parseTelegramMessage(message, replyMessage, source, nowMs, contextDirection);
       if (parsed) items.push(parsed);
     }
     const timestamps = messages.map(messageTimestampMs).filter(Number.isFinite);
