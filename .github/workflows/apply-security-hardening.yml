@@ -33,13 +33,15 @@ jobs:
           node --check api/telegram.js
           node --check public/app.js
           node --check public/tgatlas-ui.js
-      - name: Commit hardened production
+      - name: Commit hardened runtime only
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add server.source.js api/aggregate.js api/telegram.js api/status.js public/index.html public/app.js public/tgatlas-ui.js public/styles.css package.json README.md test/security.test.js .github/workflows/security-audit.yml .github/workflows/bundle-border-monitor-v2.yml .github/dependabot.yml
+          git restore .github/workflows/bundle-border-monitor-v2.yml
+          rm -f .github/workflows/security-audit.yml .github/dependabot.yml
+          git add server.source.js api/aggregate.js api/telegram.js api/status.js public/index.html public/app.js public/tgatlas-ui.js public/styles.css package.json README.md test/security.test.js
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Harden public Border Monitor attack surface"
           git pull --rebase origin border-monitor
