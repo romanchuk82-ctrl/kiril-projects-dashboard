@@ -7,7 +7,34 @@
   <title>Border Monitor UA</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="stylesheet" href="/styles.css?v=20260926-mtproto" />
-  <link rel="stylesheet" href="/compact-crossings.css?v=20260927-1" />
+  <style>
+    .crossing-card.crossing-collapsible{padding:0;overflow:hidden}
+    .compact-crossing-summary{list-style:none;cursor:pointer;padding:14px;min-height:76px;background:#fff}
+    .compact-crossing-summary::-webkit-details-marker{display:none}
+    .compact-crossing-summary::marker{display:none}
+    .compact-crossing-main{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .compact-crossing-copy{min-width:0;flex:1}
+    .compact-crossing-summary .crossing-title{font-size:15px;line-height:1.25}
+    .compact-telegram-status{margin-top:7px;font-size:10px;font-weight:700;line-height:1.3}
+    .compact-telegram-status.confirmed{color:#2E6A49}
+    .compact-telegram-status.unconfirmed{color:#8B5E12}
+    .compact-crossing-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+    .compact-crossing-right .wait-pill{margin:0}
+    .compact-chevron{color:#6E7B87;font-size:18px;line-height:1;transition:transform .18s ease}
+    .crossing-collapsible[open] .compact-chevron{transform:rotate(180deg)}
+    .crossing-collapsible[open] .compact-crossing-summary{background:#FBFCFD}
+    .compact-crossing-detail{padding:0 14px 14px;border-top:1px solid var(--line)}
+    .compact-crossing-detail>.crossing-sub{margin-top:11px}
+    @media(max-width:640px){
+      .compact-crossing-summary{padding:13px 12px;min-height:74px}
+      .compact-crossing-main{gap:9px}
+      .compact-crossing-summary .crossing-title{font-size:15px}
+      .compact-crossing-right{gap:6px}
+      .compact-crossing-right .wait-pill{padding:8px 9px}
+      .compact-crossing-detail{padding:0 12px 12px}
+    }
+    @media(prefers-reduced-motion:reduce){.compact-chevron{transition:none}}
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -25,7 +52,59 @@
     <main><div class="section-heading"><h2>Усі переходи</h2><span id="countBadge" class="count-badge">0</span></div><div id="crossingList" class="crossing-list"></div><div id="emptyState" class="empty-state hidden"><div class="empty-icon">🛰️</div><h3>Немає актуальних даних</h3><p>Дані оновлюються автоматично. Можна вибрати інший напрямок.</p></div></main>
     <footer>Офіційні PL / SK / HU / RO · Telegram-чати PL / SK / HU / RO / MD · камери · <a href="https://nakordoni.eu/" title="Border queues, forecasts &amp; statistics">Data by nakordoni.eu</a></footer>
   </div>
-  <script type="module" src="/app.js?v=20260927-live"></script>
-  <script type="module" src="/compact-crossings.js?v=20260927-1"></script>
+  <script>
+    (()=>{
+      const list=document.getElementById('crossingList');
+      const openCrossings=new Set();
+      if(!list)return;
+
+      function compactCard(card){
+        const head=card.querySelector(':scope > .crossing-head');
+        const title=head?.querySelector('.crossing-title');
+        const wait=head?.querySelector('.wait-pill');
+        const sub=head?.querySelector('.crossing-sub');
+        if(!head||!title||!wait)return;
+
+        const key=title.textContent.trim();
+        const confirmed=String(sub?.textContent||'').includes('✅ Telegram підтвердив');
+        const details=document.createElement('details');
+        details.className=`${card.className} crossing-collapsible`;
+        if(openCrossings.has(key))details.open=true;
+
+        const summary=document.createElement('summary');
+        summary.className='compact-crossing-summary';
+        summary.innerHTML=`
+          <div class="compact-crossing-main">
+            <div class="compact-crossing-copy">
+              <div class="crossing-title">${title.innerHTML}</div>
+              <div class="compact-telegram-status ${confirmed?'confirmed':'unconfirmed'}">${confirmed?'✅ Підтверджено Telegram':'⚠️ Не підтверджено Telegram'}</div>
+            </div>
+            <div class="compact-crossing-right">
+              <div class="wait-pill">${wait.textContent}</div>
+              <span class="compact-chevron" aria-hidden="true">⌄</span>
+            </div>
+          </div>`;
+
+        const body=document.createElement('div');
+        body.className='compact-crossing-detail';
+        if(sub)body.append(sub.cloneNode(true));
+        [...card.children].forEach(child=>{if(child!==head)body.append(child)});
+
+        details.append(summary,body);
+        details.addEventListener('toggle',()=>{
+          if(details.open)openCrossings.add(key);else openCrossings.delete(key);
+        });
+        card.replaceWith(details);
+      }
+
+      function compactAll(){
+        list.querySelectorAll(':scope > article.crossing-card').forEach(compactCard);
+      }
+
+      new MutationObserver(compactAll).observe(list,{childList:true});
+      compactAll();
+    })();
+  </script>
+  <script type="module" src="/app.js?v=20260927-compact2"></script>
 </body>
 </html>
