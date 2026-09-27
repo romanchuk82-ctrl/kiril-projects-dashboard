@@ -1,6 +1,6 @@
 name: Build Border Monitor bundle v2
 
-# Rebuild trigger: Nakordoni public-page fallback wired 2026-09-26
+# Rebuild trigger: Nakordoni freshest-source merge wired 2026-09-27
 on:
   push:
     branches: [border-monitor]
