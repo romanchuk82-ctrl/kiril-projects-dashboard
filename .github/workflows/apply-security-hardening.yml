@@ -5,6 +5,7 @@ on:
     branches: [border-monitor]
     paths:
       - 'scripts/security_hardening.py'
+      - 'scripts/.security-hardening-trigger'
       - '.github/workflows/apply-security-hardening.yml'
 
 permissions:
