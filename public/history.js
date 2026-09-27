@@ -1,20 +1,190 @@
-const STORE_KEY='border-monitor-history-preview-v1';
-const MAX_BATCHES=400;
-const SNAPSHOT_GAP=10*60*1000;
-const state={direction:'UA_EU',country:'ALL',days:30,current:[],batches:[]};
+const SUPABASE_URL='https://pybwmnueyxlzmjorqxvl.supabase.co';
+const SUPABASE_KEY='sb_publishable_MeDL_pur1VeNKUuRO7uGug_KR6lgub9';
+
+const COUNTRY={PL:'🇵🇱 Польща',SK:'🇸🇰 Словаччина',HU:'🇭🇺 Угорщина',RO:'🇷🇴 Румунія',MD:'🇲🇩 Молдова'};
+const DOW={1:'понеділок',2:'вівторок',3:'середа',4:'четвер',5:'п’ятниця',6:'субота',7:'неділя'};
+const state={catalog:[],direction:'UA_EU',country:'ALL',crossing:'',days:30};
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=v=>Number.isFinite(Number(v))?Number(v):null;
-function loadBatches(){try{const x=JSON.parse(localStorage.getItem(STORE_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return[]}}
-function saveBatch(direction,rows){const now=Date.now();let batches=loadBatches();const last=[...batches].reverse().find(x=>x.direction===direction);if(last&&now-last.ts<SNAPSHOT_GAP)return batches;const compact=rows.filter(r=>r&&r.name).map(r=>({id:r.ppid||r.id||r.name,name:r.name,c:r.countryCode||'',w:num(r.waitMin),q:num(r.queueCars)}));batches.push({ts:now,direction,rows:compact});if(batches.length>MAX_BATCHES)batches=batches.slice(-MAX_BATCHES);try{localStorage.setItem(STORE_KEY,JSON.stringify(batches))}catch{batches=batches.slice(-120);try{localStorage.setItem(STORE_KEY,JSON.stringify(batches))}catch{}}return batches}
-function fmtWait(v){v=num(v);if(v==null)return'—';if(v<60)return`${Math.round(v)} хв`;const h=Math.floor(v/60),m=Math.round(v%60);return m?`${h} год ${m} хв`:`${h} год`}
-function filteredCurrent(){return state.current.filter(r=>state.country==='ALL'||r.countryCode===state.country)}
-function periodBatches(){const cutoff=Date.now()-state.days*86400000;return state.batches.filter(b=>b.direction===state.direction&&b.ts>=cutoff)}
-function historyStats(){const batches=periodBatches();const samples=[];for(const b of batches)for(const r of b.rows||[])if((state.country==='ALL'||r.c===state.country)&&r.w!=null)samples.push(r.w);samples.sort((a,b)=>a-b);const avg=samples.length?samples.reduce((a,b)=>a+b,0)/samples.length:null;const med=samples.length?samples[Math.floor(samples.length/2)]:null;return{batches,samples,avg,med}}
-function renderMetrics(){const {batches,samples,avg,med}=historyStats();$('#metricSnapshots').textContent=String(batches.length);$('#metricAvg').textContent=fmtWait(avg);$('#metricMedian').textContent=fmtWait(med);$('#historyStatusNote').textContent=batches.length?`На цьому пристрої є ${batches.length} контрольних зрізів. Центральний багаторічний архів підключається окремо від Live.`:'Перший контрольний зріз буде збережено на цьому пристрої. Центральний багаторічний архів підключається окремо від Live.';$('#historyStatusBadge').textContent=batches.length?'ЗБИРАЄМО':'СТАРТ';}
-function renderCurrent(){const rows=filteredCurrent().slice().sort((a,b)=>(num(a.waitMin)??9999)-(num(b.waitMin)??9999));const box=$('#historyList');if(!rows.length){box.innerHTML='<div class="empty">Немає актуальних даних для цього фільтра.</div>';return}const max=Math.max(30,...rows.map(r=>num(r.waitMin)||0));box.innerHTML=rows.map(r=>{const w=num(r.waitMin),pct=w==null?0:Math.min(100,Math.round(w/max*100));return `<div class="history-row"><div><div class="history-name">${esc(r.name)}</div><div class="history-meta">${esc(r.country||r.countryCode||'')} · ${r.queueCars!=null?`${Math.round(r.queueCars)} авто`:'кількість авто невідома'}</div><div class="bar"><i style="width:${pct}%"></i></div></div><div class="history-wait">${esc(fmtWait(w))}</div></div>`}).join('')}
-function renderRecommendations(){const target=$('#recommendations');const batches=periodBatches();if(batches.length<12){target.innerHTML='<div class="recommend-empty">Поки що замало історичних точок для надійної поради. Після накопичення даних тут з’являться: найкращі години виїзду, типові піки за днями тижня та порівняння сусідніх КПП.</div>';return}const byHour=new Map();for(const b of batches){const h=new Date(b.ts).getHours();for(const r of b.rows||[]){if((state.country!=='ALL'&&r.c!==state.country)||r.w==null)continue;const a=byHour.get(h)||[];a.push(r.w);byHour.set(h,a)}}const scored=[...byHour].map(([h,a])=>({h,avg:a.reduce((x,y)=>x+y,0)/a.length,n:a.length})).filter(x=>x.n>=2).sort((a,b)=>a.avg-b.avg);if(!scored.length){target.innerHTML='<div class="recommend-empty">Є історія, але ще недостатньо повторюваних спостережень по годинах.</div>';return}const best=scored.slice(0,3);const worst=[...scored].sort((a,b)=>b.avg-a.avg)[0];target.innerHTML=`<div class="recommendation"><div class="rec-item"><b>Найспокійніші години</b><p>${best.map(x=>`${String(x.h).padStart(2,'0')}:00 ≈ ${fmtWait(x.avg)}`).join(' · ')}</p></div><div class="rec-item"><b>Година з найбільшим середнім очікуванням</b><p>${String(worst.h).padStart(2,'0')}:00 ≈ ${fmtWait(worst.avg)} за локально накопиченою історією.</p></div></div>`}
-function renderAll(){renderMetrics();renderCurrent();renderRecommendations()}
-async function load(){const status=$('#loadStatus');status.textContent='Оновлюю поточний зріз…';try{const r=await fetch(`/api/aggregate?direction=${encodeURIComponent(state.direction)}`,{cache:'no-store'});const body=await r.json();if(!r.ok||!body?.ok)throw new Error('aggregate_failed');state.current=Array.isArray(body.crossings)?body.crossings:[];state.batches=saveBatch(state.direction,state.current);status.textContent=`Поточний зріз: ${new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'})}`;renderAll()}catch{status.textContent='Не вдалося завантажити поточний зріз. Live при цьому не змінено.';state.current=[];state.batches=loadBatches();renderAll()}}
-for(const el of document.querySelectorAll('[data-history-filter]'))el.addEventListener('change',()=>{state[el.dataset.historyFilter]=el.dataset.historyFilter==='days'?Number(el.value):el.value;if(el.dataset.historyFilter==='direction')load();else renderAll()});
-state.batches=loadBatches();renderAll();load();
+
+function fmtWait(v){
+  v=num(v);
+  if(v==null)return'—';
+  if(v<60)return`${Math.round(v)} хв`;
+  const h=Math.floor(v/60),m=Math.round(v%60);
+  return m?`${h} год ${m} хв`:`${h} год`;
+}
+
+function fmtDate(value){
+  if(!value)return'—';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return'—';
+  return new Intl.DateTimeFormat('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);
+}
+
+async function rpc(name,args={}){
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
+    method:'POST',
+    headers:{apikey:SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify(args),
+    cache:'no-store'
+  });
+  const body=await response.json().catch(()=>null);
+  if(!response.ok)throw new Error(body?.message||body?.hint||`rpc_${response.status}`);
+  return body;
+}
+
+function visibleCatalog(){
+  return state.catalog.filter(x=>x.direction===state.direction&&(state.country==='ALL'||x.country_code===state.country));
+}
+
+function updateCountryOptions(){
+  const select=$('#countryFilter');
+  const previous=state.country;
+  const codes=[...new Set(state.catalog.filter(x=>x.direction===state.direction).map(x=>x.country_code).filter(Boolean))].sort();
+  select.innerHTML='<option value="ALL">Усі країни</option>'+codes.map(code=>`<option value="${esc(code)}">${esc(COUNTRY[code]||code)}</option>`).join('');
+  state.country=codes.includes(previous)?previous:'ALL';
+  select.value=state.country;
+}
+
+function updateCrossingOptions(preferred=''){
+  const select=$('#crossingFilter');
+  const rows=visibleCatalog().slice().sort((a,b)=>String(a.country_code||'').localeCompare(String(b.country_code||''),'uk')||String(a.name||'').localeCompare(String(b.name||''),'uk'));
+  if(!rows.length){
+    select.innerHTML='<option value="">Немає даних</option>';
+    state.crossing='';
+    select.disabled=true;
+    return;
+  }
+  select.disabled=false;
+  select.innerHTML=rows.map(x=>`<option value="${esc(x.crossing_key)}">${esc(COUNTRY[x.country_code]||x.country_code||'')} · ${esc(x.name)}</option>`).join('');
+  const candidate=rows.find(x=>x.crossing_key===preferred)||rows.find(x=>x.crossing_key===state.crossing)||rows[0];
+  state.crossing=candidate.crossing_key;
+  select.value=state.crossing;
+}
+
+function renderCatalogStatus(){
+  const relevant=state.catalog.filter(x=>x.direction===state.direction);
+  const uniqueNames=new Set(relevant.map(x=>x.crossing_key));
+  const lastTimes=relevant.map(x=>Date.parse(x.last_at||'')).filter(Number.isFinite);
+  const newest=lastTimes.length?new Date(Math.max(...lastTimes)).toISOString():null;
+  $('#historyStatusBadge').textContent=relevant.length?'ЗБИРАЄМО':'СТАРТ';
+  $('#historyStatusNote').textContent=relevant.length
+    ?`В архіві ${uniqueNames.size} КПП для цього напрямку. Останній зріз: ${fmtDate(newest)}.`
+    :'Перший центральний зріз ще готується.';
+}
+
+function resetMetrics(){
+  $('#metricSnapshots').textContent='—';
+  $('#metricAvg').textContent='—';
+  $('#metricMedian').textContent='—';
+  $('#metricP90').textContent='—';
+  $('#seriesCount').textContent='0 точок';
+  $('#historyList').innerHTML='<div class="empty">Немає історичних даних для цього фільтра.</div>';
+  $('#recommendations').innerHTML='<div class="recommend-empty">Потрібно накопичити достатньо спостережень.</div>';
+}
+
+function renderSeries(series){
+  $('#seriesCount').textContent=`${series.length} ${series.length===1?'точка':'точок'}`;
+  const box=$('#historyList');
+  if(!series.length){box.innerHTML='<div class="empty">Історія для цього КПП ще накопичується.</div>';return;}
+  const display=series.slice(-72).reverse();
+  const max=Math.max(20,...display.map(r=>num(r.wait_min)||0));
+  box.innerHTML=display.map(r=>{
+    const w=num(r.wait_min),q=num(r.queue_cars),pct=w==null?0:Math.min(100,Math.round(w/max*100));
+    return `<div class="history-row"><div><div class="history-name">${esc(fmtDate(r.bucket_at))}</div><div class="history-meta">${q!=null?`${Math.round(q)} авто`:'авто —'} · ${Number(r.reliable_count||0)>0?'є підтвердження':'оцінка'}</div><div class="bar"><i style="width:${pct}%"></i></div></div><div class="history-wait">${esc(fmtWait(w))}</div></div>`;
+  }).join('');
+}
+
+function renderInsights(insights){
+  const samples=Number(insights?.sampleCount||0);
+  $('#metricSnapshots').textContent=String(samples);
+  $('#metricAvg').textContent=fmtWait(insights?.avgWaitMin);
+  $('#metricMedian').textContent=fmtWait(insights?.medianWaitMin);
+  $('#metricP90').textContent=fmtWait(insights?.p90WaitMin);
+  const box=$('#recommendations');
+  if(samples<48){
+    box.innerHTML=`<div class="recommend-empty">Є ${samples} ${samples===1?'спостереження':'спостережень'} по цьому КПП. Для поради за годинами потрібно хоча б приблизно 48 погодинних точок. Поки показуємо історію без передчасних висновків.</div>`;
+    return;
+  }
+  const cards=[];
+  if(insights.bestHour!=null&&insights.bestHourAvgWaitMin!=null){
+    const h=String(insights.bestHour).padStart(2,'0');
+    cards.push(`<div class="rec-item good"><b>Найспокійніша година</b><p>Близько <strong>${h}:00</strong> середнє очікування було ${esc(fmtWait(insights.bestHourAvgWaitMin))}.</p></div>`);
+  }
+  if(insights.worstHour!=null&&insights.worstHourAvgWaitMin!=null){
+    const h=String(insights.worstHour).padStart(2,'0');
+    cards.push(`<div class="rec-item warn"><b>Час із більшим навантаженням</b><p>Близько <strong>${h}:00</strong> середнє очікування було ${esc(fmtWait(insights.worstHourAvgWaitMin))}.</p></div>`);
+  }
+  if(samples>=336&&insights.bestIsoDow!=null&&insights.bestDowAvgWaitMin!=null){
+    cards.push(`<div class="rec-item"><b>День тижня</b><p>За накопиченою історією найспокійнішим був <strong>${esc(DOW[insights.bestIsoDow]||String(insights.bestIsoDow))}</strong> · ${esc(fmtWait(insights.bestDowAvgWaitMin))} у середньому.</p></div>`);
+  }
+  cards.push(`<div class="rec-item"><b>Наскільки це надійно</b><p>Висновок базується на ${samples} спостереженнях за обраний період. Це статистичний орієнтир, а не гарантія черги в конкретний день.</p></div>`);
+  box.innerHTML=`<div class="recommendation">${cards.join('')}</div>`;
+}
+
+async function loadSelection(){
+  if(!state.crossing){resetMetrics();return;}
+  const status=$('#loadStatus');
+  status.textContent='Завантажую історію КПП…';
+  try{
+    const [series,insights]=await Promise.all([
+      rpc('border_history_series',{p_crossing_key:state.crossing,p_direction:state.direction,p_days:state.days}),
+      rpc('border_history_insights',{p_crossing_key:state.crossing,p_direction:state.direction,p_days:state.days})
+    ]);
+    renderSeries(Array.isArray(series)?series:[]);
+    renderInsights(insights||{});
+    status.textContent=`Період: ${state.days===365?'1 рік':state.days===730?'2 роки':`${state.days} днів`} · оновлено ${new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'})}`;
+  }catch(error){
+    console.error(error);
+    resetMetrics();
+    status.textContent='Не вдалося прочитати історію. Live працює окремо і не залежить від цього розділу.';
+  }
+}
+
+async function loadCatalog(){
+  const status=$('#loadStatus');
+  status.textContent='Завантажую центральний архів…';
+  try{
+    const data=await rpc('border_history_catalog');
+    state.catalog=Array.isArray(data)?data:[];
+    updateCountryOptions();
+    updateCrossingOptions();
+    renderCatalogStatus();
+    await loadSelection();
+  }catch(error){
+    console.error(error);
+    state.catalog=[];
+    updateCountryOptions();
+    updateCrossingOptions();
+    resetMetrics();
+    $('#historyStatusBadge').textContent='НЕДОСТУПНО';
+    $('#historyStatusNote').textContent='Історичне сховище тимчасово недоступне.';
+    status.textContent='Live при цьому не змінено і продовжує працювати окремо.';
+  }
+}
+
+$('#directionFilter').addEventListener('change',async e=>{
+  state.direction=e.target.value==='EU_UA'?'EU_UA':'UA_EU';
+  state.country='ALL';
+  updateCountryOptions();
+  updateCrossingOptions();
+  renderCatalogStatus();
+  await loadSelection();
+});
+$('#countryFilter').addEventListener('change',async e=>{
+  state.country=e.target.value||'ALL';
+  updateCrossingOptions();
+  await loadSelection();
+});
+$('#crossingFilter').addEventListener('change',async e=>{
+  state.crossing=e.target.value||'';
+  await loadSelection();
+});
+$('#periodFilter').addEventListener('change',async e=>{
+  state.days=Math.max(1,Math.min(730,Number(e.target.value)||30));
+  await loadSelection();
+});
+
+loadCatalog();
