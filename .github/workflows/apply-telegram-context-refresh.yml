@@ -1,0 +1,37 @@
+name: Apply Telegram context refresh fix
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - 'scripts/patch_telegram_context_refresh.py'
+      - '.github/workflows/apply-telegram-context-refresh.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Patch parser and UI refresh
+        run: python scripts/patch_telegram_context_refresh.py
+      - name: Syntax check
+        run: |
+          node --check api/telegram.js
+          node --check public/tgatlas-ui.js
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/telegram.js public/tgatlas-ui.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Fix Telegram latest-message context parsing"
+          git pull --rebase origin border-monitor
+          git push origin HEAD:border-monitor
