@@ -1,4 +1,4 @@
-const SOURCE_TTL_MS = 30 * 60 * 1000;
+const SOURCE_TTL_MS = 3 * 60 * 1000;
 const MAX_AGE_MIN = 180;
 const MESSAGE_LIMIT = 60;
 const MAX_REPORTS_PER_DIRECTION = 3;
