@@ -38,3 +38,43 @@ jobs:
           ! grep -RInE --exclude='server.bundle.cjs' --exclude='package-lock.json' '-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----|sk-[A-Za-z0-9_-]{20,}' api public scripts server.source.js
           ! grep -RInE '<script>[[:space:]]*[^<]|<style[ >]| on[a-z]+=' public/index.html
           ! grep -RInE 'refresh=1|/snapshot\?' public
+
+  production-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify deployed attack surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://border-monitor-ua.onrender.com'
+          passed=0
+          for i in $(seq 1 60); do
+            if curl -fsS "$BASE/health" >/tmp/health.json 2>/dev/null; then
+              full=$(curl -sS -o /tmp/full.json -w '%{http_code}' "$BASE/api/telegram?full=1" || true)
+              old=$(curl -sS -o /tmp/old.txt -w '%{http_code}' "$BASE/snapshot?username=hryshiv" || true)
+              if [ "$full" = '403' ] && [ "$old" = '404' ]; then passed=1; break; fi
+            fi
+            sleep 5
+          done
+          test "$passed" = 1
+          grep -q '"ok":true' /tmp/health.json
+          grep -q 'full_probe_disabled' /tmp/full.json
+
+          curl -fsSI "$BASE/" >/tmp/headers.txt
+          grep -qi '^content-security-policy:' /tmp/headers.txt
+          grep -qi '^strict-transport-security:' /tmp/headers.txt
+          grep -qi '^x-frame-options: *DENY' /tmp/headers.txt
+          grep -qi '^x-content-type-options: *nosniff' /tmp/headers.txt
+          grep -qi '^referrer-policy: *no-referrer' /tmp/headers.txt
+          grep -qi '^permissions-policy:' /tmp/headers.txt
+
+          code=$(curl -sS -X POST -o /tmp/post.txt -w '%{http_code}' "$BASE/api/aggregate")
+          test "$code" = '405'
+
+          curl -fsS "$BASE/api/aggregate?direction=UA_EU" -o /tmp/aggregate.json
+          grep -q '"ok":true' /tmp/aggregate.json
+          ! grep -q '"camera"' /tmp/aggregate.json
+          ! grep -qi 'TELEGRAM_SESSION\|TELEGRAM_API_HASH\|TELEGRAM_API_ID\|NKD_API_KEY' /tmp/aggregate.json
+
+          curl -fsS "$BASE/api/telegram?username=hryshiv&refresh=1" -o /tmp/tg.json
+          ! grep -qi 'peerId\|TELEGRAM_SESSION\|TELEGRAM_API_HASH\|TELEGRAM_API_ID' /tmp/tg.json
