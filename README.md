@@ -17,7 +17,7 @@ Live: https://romanchuk82-ctrl.github.io/kiril-projects-dashboard/
 Окрема production-гілка моніторингу черг на автомобільних пунктах пропуску:
 
 - production: https://border-monitor-ua.onrender.com;
-- офіційні джерела, Nakordoni та камери формують основні показники;
+- офіційні джерела, Nakordoni, Kordon.info/ДПСУ та Telegram формують основні показники;
 - Telegram MTProto додає окремий людський сигнал і ніколи не перезаписує основний `waitMin`;
 - 29 чатів конкретних КПП і 4 загальні Telegram-джерела оновлюються раз на 4 хвилини;
 - Telegram-повідомлення вважаються актуальними до 3 годин, а дублікати відсіюються за каналом та ID повідомлення.
@@ -32,7 +32,7 @@ Live: https://romanchuk82-ctrl.github.io/kiril-projects-dashboard/
 - `TELEGRAM_SETUP_TOKEN` — тимчасовий випадковий токен для приватної QR-сторінки;
 - `NKD_API_KEY` — ключ Nakordoni, якщо джерело використовується напряму.
 
-Одноразовий вхід виконується через `/telegram/setup`: власник сканує QR-код або підтверджує в офіційному Telegram. Номер телефону та код входу сайт не запитує. Якщо Telegram вимагає 2FA, пароль існує тільки в пам'яті процесу під час цього входу. Після отримання StringSession її потрібно перенести в `TELEGRAM_SESSION`, а `TELEGRAM_SETUP_TOKEN` очистити. Сесія не повинна потрапляти в Git, логи чи відповіді API за межами захищеного одноразового flow.
+Production не публікує маршрути налаштування Telegram. Секрети не повинні потрапляти в Git, логи або відповіді API.
 
 ### Локальна перевірка
 
@@ -44,3 +44,13 @@ npm start
 ```
 
 Без Telegram-секретів застосунок запускається у безпечному режимі `not_configured`: картки КПП і посилання на чати залишаються доступними, але історія повідомлень не читається.
+
+### Безпека production
+
+- тільки read-only GET API;
+- суворий CSP без inline JavaScript/CSS;
+- HSTS, anti-frame, referrer/permissions policy;
+- rate limiting та обмеження розміру URL/headers;
+- публічний Telegram API не дозволяє force/full refresh;
+- caller-supplied API keys і секрети не приймаються;
+- щотижневий dependency/security audit і Dependabot.

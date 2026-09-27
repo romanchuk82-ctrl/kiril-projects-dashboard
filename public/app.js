@@ -32,8 +32,9 @@ function displayQueueText(r){const q=displayQueue(r);if(q==null)return qualitati
 function displayAgeMin(r){if(r?.ageMin!=null&&Number.isFinite(Number(r.ageMin)))return Number(r.ageMin);const a=(r?.sources||[]).filter(s=>s?.source==='telegram'&&s.ageMin!=null&&Number.isFinite(Number(s.ageMin))).map(s=>Number(s.ageMin));return a.length?Math.min(...a):null}
 function rankable(rows){return rows.filter(r=>displayTimeMin(r)!=null&&!r.stale).sort((a,b)=>displayTimeMin(a)-displayTimeMin(b))}
 function sourceConflict(r){const vals=(r.sources||[]).filter(s=>s.source!=='telegram').map(s=>Number(s.value)).filter(Number.isFinite);return vals.length>=2&&Math.max(...vals)-Math.min(...vals)>=30}
-function sourceUrl(s){if(s?.sourceUrl)return s.sourceUrl;if(s?.source==='nakordoni')return'https://nakordoni.eu/';return null}
-function telegramChannelUrl(s){if(s?.channelUrl)return s.channelUrl;const u=s?.sourceUrl;if(!u)return null;const m=String(u).match(/^https:\/\/t\.me\/([^/]+)/i);return m?`https://t.me/${m[1]}`:null}
+function safeExternalUrl(value){if(!value)return null;try{const u=new URL(String(value),window.location.origin);return u.protocol==='https:'?u.href:null}catch{return null}}
+function sourceUrl(s){if(s?.sourceUrl)return safeExternalUrl(s.sourceUrl);if(s?.source==='nakordoni')return'https://nakordoni.eu/';return null}
+function telegramChannelUrl(s){if(s?.channelUrl)return safeExternalUrl(s.channelUrl);const u=safeExternalUrl(s?.sourceUrl);if(!u)return null;const m=String(u).match(/^https:\/\/t\.me\/([^/]+)/i);return m?`https://t.me/${m[1]}`:null}
 function telegramChannelName(s){if(s?.label&&s.label!=='Telegram')return s.label;if(s?.sourceChannel)return s.sourceChannel;const u=telegramChannelUrl(s);return u?u.split('/').pop():'Telegram'}
 function mainSource(r){const src=(r.sources||[]).filter(s=>s.source!=='telegram'&&Number.isFinite(Number(s.value)));if(r.waitMin==null)return null;const same=src.filter(s=>Math.round(Number(s.value))===Math.round(Number(r.waitMin)));return same.find(s=>s.source==='nakordoni')||same.find(s=>String(s.source||'').startsWith('official_'))||same[0]||src.find(s=>s.source==='nakordoni')||src[0]||null}
 function provenance(r){const all=(r.sources||[]),nonTg=all.filter(s=>s.source!=='telegram'),main=mainSource(r);if(r.waitMin==null)return`<div class="provenance"><div class="prov-title">Звідки взявся очікуваний час</div><div class="prov-empty">${r.telegramWaitMin!=null?`Telegram повідомляє фактичний час проходження <strong>${fmtWait(r.telegramWaitMin)}</strong>, але незалежного джерела для підтвердження немає.`:`Числового часу поки немає.${r.telegramQueueCars!=null?` Telegram повідомляє приблизно ${r.telegramQueueCars} авто.`:''}`}</div></div>`;let mainText;if(r.timeReliability==='confirmed'&&r.baseWaitMin!=null&&r.telegramWaitMin!=null)mainText=`Фінальна оцінка <strong>${fmtWait(r.waitMin)}</strong>: базове джерело ${fmtWait(r.baseWaitMin)} + свіжий час Telegram ${fmtWait(r.telegramWaitMin)}.`;else if(r.timeReliability==='supported')mainText=`Показаний час <strong>${fmtWait(r.waitMin)}</strong> взято з базового джерела, а ситуацію незалежно підтверджено повідомленнями Telegram.`;else mainText=main?`Показаний час <strong>${fmtWait(r.waitMin)}</strong> взято з <strong>${esc(main.label||main.source)}</strong>${main.ageMin!=null?` · ${fmtAge(main.ageMin)}`:''}.`:`Показаний час <strong>${fmtWait(r.waitMin)}</strong>.`;const trust=` <span class="${r.timeReliable?'':'warn-text'}">${esc(timeTrustText(r))}</span>`;const rows=nonTg.map(s=>{const url=sourceUrl(s);return`<div class="prov-row ${main===s?'primary':''}"><div><span class="prov-source">${main===s?'Основне · ':''}${esc(s.label||s.source)}</span>${s.note?`<div class="prov-note">${esc(s.note)}</div>`:''}</div><div class="prov-right"><strong>${fmtSourceWait(s)||'без часу'}</strong>${s.ageMin!=null?`<span>${fmtAge(s.ageMin)}</span>`:''}${url?`<a href="${esc(url)}" target="_blank" rel="noopener">джерело ↗</a>`:''}</div></div>`}).join('');return`<div class="provenance"><div class="prov-title">Звідки взявся очікуваний час</div><div class="prov-summary">${mainText}${trust}${sourceConflict(r)?' <span class="warn-text">⚠️ Джерела помітно різняться.</span>':''}</div><div class="prov-list">${rows||'<div class="prov-empty">Додаткових джерел немає.</div>'}</div></div>`}
@@ -41,8 +42,8 @@ function directionBasisLabel(v){return v==='reply'?'напрямок визна�
 function telegramItemHtml(s){const ch=telegramChannelUrl(s),post=s.sourceUrl,name=telegramChannelName(s),stamp=fmtTelegramDateTime(s.updatedAt);const stats=[s.value!=null?`⏱ ${fmtWait(s.value)}`:'',s.queueCars!=null?`🚗 ${s.queueCars} авто`:''].filter(Boolean).join(' · ');return`<div class="telegram-item"><div class="telegram-head"><strong>${esc(name)}</strong><span>${stamp?esc(stamp):(s.ageMin!=null?fmtAge(s.ageMin):'')}</span></div>${stats?`<div class="telegram-stats">${stats}</div>`:''}${s.note?`<div class="telegram-note">${esc(s.note)}</div>`:''}${s.replyContext?`<div class="telegram-reply"><span>↩️ Відповідь на:</span> ${esc(s.replyContext)}</div>`:''}<div class="telegram-meta">${s.ageMin!=null?`${fmtAge(s.ageMin)} · `:''}${esc(directionBasisLabel(s.directionBasis))}</div><div class="telegram-links">${ch?`<a href="${esc(ch)}" target="_blank" rel="noopener">Чат ↗</a>`:''}${post?`<a href="${esc(post)}" target="_blank" rel="noopener">Конкретне повідомлення ↗</a>`:''}</div></div>`}
 function telegramBlock(r){
   const tg=(r.sources||[]).filter(s=>s.source==='telegram'&&s.ageMin!=null&&Number(s.ageMin)>=0&&Number(s.ageMin)<=TG_TRUST_MAX_AGE).sort((a,b)=>{const ta=Date.parse(a.updatedAt||''),tb=Date.parse(b.updatedAt||'');if(Number.isFinite(ta)&&Number.isFinite(tb)&&ta!==tb)return tb-ta;return(a.ageMin??9999)-(b.ageMin??9999)}),chat=r.telegramChat||null;
-  if(!tg.length){const target=chat?.url||null;return`<div class="telegram-box no-tg"><div class="telegram-title">💬 Що пишуть зараз</div><div class="telegram-empty">Немає свіжого релевантного повідомлення про цей КПП.</div>${target?`<div class="telegram-simple-actions"><a href="${esc(target)}" target="_blank" rel="noopener">Відкрити Telegram ↗</a></div>`:''}</div>`}
-  const latest=tg[0],target=latest.sourceUrl||chat?.url||null,signal=telegramQualitativeSignal(latest),cue=signal==='low'?'🟢 За повідомленням черги майже немає':signal==='high'?'🔴 Повідомляють про значну чергу':'Свіже повідомлення від водіїв';
+  if(!tg.length){const target=safeExternalUrl(chat?.url)||null;return`<div class="telegram-box no-tg"><div class="telegram-title">💬 Що пишуть зараз</div><div class="telegram-empty">Немає свіжого релевантного повідомлення про цей КПП.</div>${target?`<div class="telegram-simple-actions"><a href="${esc(target)}" target="_blank" rel="noopener">Відкрити Telegram ↗</a></div>`:''}</div>`}
+  const latest=tg[0],target=safeExternalUrl(latest.sourceUrl)||safeExternalUrl(chat?.url)||null,signal=telegramQualitativeSignal(latest),cue=signal==='low'?'🟢 За повідомленням черги майже немає':signal==='high'?'🔴 Повідомляють про значну чергу':'Свіже повідомлення від водіїв';
   return`<div class="telegram-box"><div class="telegram-title">💬 Що пишуть зараз</div><div class="telegram-simple"><div class="telegram-cue">${cue}</div>${latest.note?`<div class="telegram-quote">“${esc(latest.note)}”</div>`:''}<div class="telegram-simple-meta">${latest.ageMin!=null?fmtAge(latest.ageMin):''}${latest.replyContext?' · відповідь на питання про чергу':''}</div>${latest.replyContext?`<div class="telegram-reply-simple">↩️ ${esc(latest.replyContext)}</div>`:''}</div>${target?`<div class="telegram-simple-actions"><a href="${esc(target)}" target="_blank" rel="noopener">Відкрити в Telegram ↗</a></div>`:''}</div>`
 }
 function actions(r){return''}
@@ -76,3 +77,48 @@ function officialSummary(off){if(!off||typeof off!=='object')return'—';return 
 function telegramStatusLabel(status,details){const count=details?.totalSources?` ${details.connectedSources||0}/${details.totalSources}`:'';if(status==='connected')return`✓${count}`;if(status==='partial')return`частково${count}`;if(status==='not_configured')return'потрібна авторизація';if(status==='missing_credentials')return'немає API secrets';return'помилка'}
 async function load(){if(state.loading)return;state.loading=true;$('updatedText').textContent='Оновлюю дані автоматично…';try{const r=await fetch(`/api/aggregate?direction=${state.direction}`,{cache:'no-store'}),data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Не вдалося отримати дані');state.rows=Array.isArray(data.crossings)?data.crossings:[];const dt=data.generatedAt?new Date(data.generatedAt):new Date();$('updatedText').textContent=`LIVE · автооновлено ${dt.toLocaleTimeString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'})}`;const nk=data.sourceStatus?.nakordoni,kd=data.sourceStatus?.kordon,kdd=data.sourceStatus?.kordonDetails,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;const kt=kd==='connected'?`✓${kdd?.count?` ${kdd.count}`:''}`:kd==='not_applicable'?'—':kd==='stale_cache'?'кеш':kd||'—';$('sourceText').textContent=`Nakordoni ${nk==='connected'?'✓':nk==='missing_key'?'—':nk||'—'} · ДПСУ/Kordon.info ${kt} · Офіційні ${officialSummary(data.sourceStatus?.official)} · Telegram ${telegramStatusLabel(tg,td)}`;render()}catch(e){$('updatedText').textContent='Тимчасова помилка автооновлення';$('sourceText').textContent=String(e.message||e)}finally{state.loading=false}}
 document.querySelectorAll('.segment-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.segment-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');state.direction=btn.dataset.direction;load()}));document.querySelectorAll('.country-tab').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.country-tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');state.country=btn.dataset.country;render()}));load();setInterval(load,60_000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});window.addEventListener('focus',load);
+
+
+// Static shell behavior kept in this external module so a strict CSP can block inline scripts.
+(() => {
+  const infoBtn=document.getElementById('siteInfoBtn');
+  const dialog=document.getElementById('siteInfoDialog');
+  const closeBtn=document.getElementById('siteInfoClose');
+  const doneBtn=document.getElementById('siteInfoDone');
+  const openInfo=()=>{if(typeof dialog?.showModal==='function')dialog.showModal();else dialog?.setAttribute('open','')};
+  const closeInfo=()=>{if(typeof dialog?.close==='function')dialog.close();else dialog?.removeAttribute('open')};
+  infoBtn?.addEventListener('click',openInfo);
+  closeBtn?.addEventListener('click',closeInfo);
+  doneBtn?.addEventListener('click',closeInfo);
+  dialog?.addEventListener('click',e=>{if(e.target===dialog)closeInfo()});
+
+  const list=document.getElementById('crossingList');
+  const openCrossings=new Set();
+  if(!list)return;
+  function compactCard(card){
+    const head=card.querySelector(':scope > .crossing-head');
+    const title=head?.querySelector('.crossing-title');
+    const wait=head?.querySelector('.wait-pill');
+    const human=head?.querySelector('.human-status');
+    const sub=head?.querySelector('.crossing-sub');
+    if(!head||!title||!wait)return;
+    const key=title.textContent.trim();
+    const tone=['tone-green','tone-yellow','tone-orange','tone-red','tone-gray'].find(c=>human?.classList.contains(c))||'tone-gray';
+    const details=document.createElement('details');
+    details.className=`${card.className} crossing-collapsible`;
+    if(openCrossings.has(key))details.open=true;
+    const summary=document.createElement('summary');
+    summary.className='compact-crossing-summary';
+    summary.innerHTML=`<div class="compact-crossing-main"><div class="compact-crossing-copy"><div class="crossing-title">${esc(title.textContent)}</div><div class="compact-human-status ${tone}">${esc(human?.textContent||'⚪️ Стан черги уточнюється')}</div></div><div class="compact-crossing-right"><div class="wait-pill">${esc(wait.textContent)}</div><span class="compact-chevron" aria-hidden="true">⌄</span></div></div>`;
+    const body=document.createElement('div');
+    body.className='compact-crossing-detail';
+    if(sub)body.append(sub.cloneNode(true));
+    [...card.children].forEach(child=>{if(child!==head)body.append(child)});
+    details.append(summary,body);
+    details.addEventListener('toggle',()=>{if(details.open)openCrossings.add(key);else openCrossings.delete(key)});
+    card.replaceWith(details);
+  }
+  function compactAll(){list.querySelectorAll(':scope > article.crossing-card').forEach(compactCard)}
+  new MutationObserver(compactAll).observe(list,{childList:true});
+  compactAll();
+})();

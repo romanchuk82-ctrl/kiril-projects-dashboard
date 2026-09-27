@@ -31,11 +31,10 @@
     };
   }
 
-  async function loadTelegram(channel, force = false) {
+  async function loadTelegram(channel) {
     if (!channel) return false;
     try {
-      const refresh = force ? '&refresh=1' : '';
-      const response = await fetch(`/snapshot?username=${encodeURIComponent(channel)}${refresh}`, { cache: 'no-store' });
+      const response = await fetch(`/api/telegram?username=${encodeURIComponent(channel)}`, { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'telegram_error');
       const key = channel.toLowerCase();
@@ -110,7 +109,7 @@
       const now = Date.now();
       if (now - (forcedAt.get(key) || 0) < 15_000) return;
       forcedAt.set(key, now);
-      const ok = await loadTelegram(channel, true);
+      const ok = await loadTelegram(channel);
       if (ok) baseRender();
     }, 0);
   });

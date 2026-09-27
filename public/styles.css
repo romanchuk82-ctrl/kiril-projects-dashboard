@@ -172,3 +172,31 @@ footer a{color:inherit;display:inline-flex;align-items:center;min-height:44px}
 
 /* tgAtlas on-demand */
 .tg-load-btn{appearance:none;border:1px solid rgba(11,42,74,.18);background:#fff;color:#0b2a4a;border-radius:10px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer;min-height:40px}.tg-load-btn:hover{background:#f4f7fa}.tg-load-btn:disabled{opacity:.65;cursor:wait}
+
+
+/* strict-CSP compact shell */
+.summary-grid[hidden]{display:none!important}
+    .crossing-card.crossing-collapsible{padding:0;overflow:hidden}
+    .compact-crossing-summary{list-style:none;cursor:pointer;padding:14px;min-height:82px;background:#fff}
+    .compact-crossing-summary::-webkit-details-marker{display:none}
+    .compact-crossing-summary::marker{display:none}
+    .compact-crossing-main{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .compact-crossing-copy{min-width:0;flex:1}
+    .compact-crossing-summary .crossing-title{font-size:15px;line-height:1.25}
+    .compact-human-status{margin-top:7px;font-size:11px;font-weight:700;line-height:1.3}
+    .compact-crossing-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+    .compact-crossing-right .wait-pill{margin:0}
+    .compact-chevron{color:#6E7B87;font-size:18px;line-height:1;transition:transform .18s ease}
+    .crossing-collapsible[open] .compact-chevron{transform:rotate(180deg)}
+    .crossing-collapsible[open] .compact-crossing-summary{background:#FBFCFD}
+    .compact-crossing-detail{padding:0 14px 14px;border-top:1px solid var(--line)}
+    .compact-crossing-detail>.crossing-sub{margin-top:11px}
+    @media(max-width:640px){
+      .compact-crossing-summary{padding:13px 12px;min-height:80px}
+      .compact-crossing-main{gap:9px}
+      .compact-crossing-summary .crossing-title{font-size:15px}
+      .compact-crossing-right{gap:6px}
+      .compact-crossing-right .wait-pill{padding:8px 9px}
+      .compact-crossing-detail{padding:0 12px 12px}
+    }
+    @media(prefers-reduced-motion:reduce){.compact-chevron{transition:none}}

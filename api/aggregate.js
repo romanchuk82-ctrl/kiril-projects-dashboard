@@ -221,11 +221,12 @@ async function supplementNakordoniLiveQueue(rows,apiKey,direction){
   return{rows:base,attempted:1,updated:merged.updated?1:0,details:[detail]}
 }
 function sort(rows){return[...rows].sort((a,b)=>(a.timeReliable===true?0:1)-(b.timeReliable===true?0:1)||(a.stale?1:0)-(b.stale?1:0)||(a.waitMin??999999)-(b.waitMin??999999)||(a.ageMin??9999)-(b.ageMin??9999))}
+function sanitizeRows(rows){return sort(rows).map(({camera,...rest})=>rest)}
 async function fetchRegionalUpstream(direction){const base=process.env.UPSTREAM_AGGREGATOR_URL?.replace(/\/$/,'');if(!base)return null;try{const r=await fetch(`${base}/api/aggregate?direction=${direction}`,{headers:{Accept:'application/json'},cache:'no-store'});const body=await r.json().catch(()=>null);if(!r.ok||!body?.ok)return null;return body}catch{return null}}
 export default async function handler(req,res){
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'method_not_allowed'});
   const direction=req.query?.direction==='EU_UA'?'EU_UA':'UA_EU';
-  const apiKey=process.env.NKD_API_KEY||s(req.headers?.['x-nkd-key']);
+  const apiKey=process.env.NKD_API_KEY||null;
   const regional=await fetchRegionalUpstream(direction);
   if(regional){
     const [tg,kordon]=await Promise.all([getTelegram(),fetchKordonLive(direction)]);
@@ -233,7 +234,7 @@ export default async function handler(req,res){
     const nw=await supplementNakordoniWeb(nl.rows,direction);
     let base=mergeKordon(nw.rows,kordon,direction);
     const rows=mergeTelegram(base,tg.items,direction,tg.sources);
-    return res.status(200).json({...regional,generatedAt:new Date().toISOString(),cacheMinutes:2,crossings:sort(rows),sourceStatus:{...(regional.sourceStatus||{}),nakordoniDetails:{...(regional.sourceStatus?.nakordoniDetails||{}),webCount:nw.web?.crossings?.length||0,added:nw.added,freshnessMerge:true,liveQueueAttempted:nl.attempted,liveQueueUpdated:nl.updated,liveQueueDetails:nl.details},kordon:kordon.status,kordonDetails:kordonDetails(kordon),telegram:tg.status,telegramDetails:tg.meta},viaRegionalUpstream:true,telegramLocal:true})
+    return res.status(200).json({...regional,generatedAt:new Date().toISOString(),cacheMinutes:2,crossings:sanitizeRows(rows),sourceStatus:{...(regional.sourceStatus||{}),nakordoniDetails:{...(regional.sourceStatus?.nakordoniDetails||{}),webCount:nw.web?.crossings?.length||0,added:nw.added,freshnessMerge:true,liveQueueAttempted:nl.attempted,liveQueueUpdated:nl.updated,liveQueueDetails:nl.details},kordon:kordon.status,kordonDetails:kordonDetails(kordon),telegram:tg.status,telegramDetails:tg.meta},viaRegionalUpstream:true,telegramLocal:true})
   }
   const generatedAt=new Date().toISOString();
   const [tg,official,kordon]=await Promise.all([getTelegram(),getOfficial(direction),fetchKordonLive(direction)]);
@@ -242,7 +243,7 @@ export default async function handler(req,res){
     let rows=mergeKordon(nw.rows,kordon,direction);
     rows=mergeOfficial(rows,official.items,direction);
     rows=mergeTelegram(rows,tg.items,direction,tg.sources);
-    return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:2,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added,freshnessMerge:true},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})
+    return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:2,crossings:sanitizeRows(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':'missing_key',nakordoniDetails:{mode:nw.rows.length?'web_fallback':'missing_key',apiCount:0,webCount:nw.web?.crossings?.length||0,added:nw.added,freshnessMerge:true},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,telegram:tg.status,telegramDetails:tg.meta},attribution:'Data by nakordoni.eu',failures:nw.web?.failures||[]})
   }
   const ck=`${apiKey.slice(-6)}:${direction}`;
   let nkd=cache.get(ck),fromCache=true;
@@ -253,5 +254,5 @@ export default async function handler(req,res){
   let rows=mergeKordon(nw.rows,kordon,direction);
   rows=mergeOfficial(rows,official.items,direction);
   rows=mergeTelegram(rows,tg.items,direction,tg.sources);
-  return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:2,fromCache,crossings:sort(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nl.updated?'api_plus_live_queue':(nw.added?'api_plus_web':'api')):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added,freshnessMerge:true,liveQueueAttempted:nl.attempted,liveQueueUpdated:nl.updated,liveQueueDetails:nl.details},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,cameras:'configured',telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,usage:x.usage,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})
+  return res.status(200).json({ok:true,generatedAt,direction,apiVersion:'v4',cacheMinutes:2,fromCache,crossings:sanitizeRows(rows),sourceStatus:{nakordoni:nw.rows.length?'connected':(x.failures.length?'error':'empty'),nakordoniDetails:{mode:x.crossings.length?(nl.updated?'api_plus_live_queue':(nw.added?'api_plus_web':'api')):(nw.web?.crossings?.length?'web_fallback':'error'),apiCount:x.crossings.length,webCount:nw.web?.crossings?.length||0,added:nw.added,freshnessMerge:true,liveQueueAttempted:nl.attempted,liveQueueUpdated:nl.updated,liveQueueDetails:nl.details},kordon:kordon.status,kordonDetails:kordonDetails(kordon),official:official.status,telegram:tg.status,telegramDetails:tg.meta},attribution:x.attribution,failures:[...(x.failures||[]),...((nw.web?.failures)||[])]})
 }

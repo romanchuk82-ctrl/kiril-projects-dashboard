@@ -9,6 +9,7 @@ const CONTEXT_DIRECTION_STRONG_SIGNAL_MAX_GAP_MS = 120 * 60 * 1000;
 
 const peerCache = new Map();
 const sourceCache = new Map();
+const sourceInflight = new Map();
 let fullRefreshPromise = null;
 let quotaState = { remaining: null, observedAt: null };
 
@@ -393,10 +394,20 @@ async function fetchSource(source, force = false) {
   }
 }
 
+
+async function fetchSourceDeduped(source, force = false) {
+  const key = String(source?.username || '').toLowerCase();
+  if (!key) return fetchSource(source, force);
+  const existing = sourceInflight.get(key);
+  if (existing) return existing;
+  const task = Promise.resolve(fetchSource(source, force)).finally(() => sourceInflight.delete(key));
+  sourceInflight.set(key, task);
+  return task;
+}
 async function fetchInBatches(sources, force = false) {
   const output = [];
   for (let index = 0; index < sources.length; index += CONCURRENCY) {
-    const batch = await Promise.all(sources.slice(index, index + CONCURRENCY).map(source => fetchSource(source, force)));
+    const batch = await Promise.all(sources.slice(index, index + CONCURRENCY).map(source => fetchSourceDeduped(source, force)));
     output.push(...batch);
     if (index + CONCURRENCY < sources.length) await new Promise(resolve => setTimeout(resolve, 700));
   }
@@ -481,7 +492,7 @@ export async function getTelegramSnapshot(options = {}) {
   if (username) {
     const source = sourceByUsername(username);
     if (!source) return { ...buildPayload(), ok: false, error: 'unknown_source' };
-    const result = await fetchSource(source, Boolean(options.force));
+    const result = await fetchSourceDeduped(source, Boolean(options.force));
     return buildPayload([result], source.username);
   }
   if (options?.full) {
@@ -496,11 +507,24 @@ export function clearTelegramCache() {
   sourceCache.clear();
 }
 
+function publicSnapshot(payload) {
+  return {
+    ok: payload?.ok !== false,
+    generatedAt: payload?.generatedAt || new Date().toISOString(),
+    cacheMinutes: payload?.cacheMinutes ?? null,
+    maxAgeMinutes: payload?.maxAgeMinutes ?? null,
+    status: payload?.status || 'unknown',
+    requested: payload?.requested || null,
+    error: payload?.ok === false ? (payload?.error || 'not_found') : undefined,
+    items: Array.isArray(payload?.items) ? payload.items : [],
+    sources: Array.isArray(payload?.sources) ? payload.sources.map(({peerId,error,...rest}) => rest) : []
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-  const username = req.query?.username ? String(req.query.username) : null;
-  const full = req.query?.full === '1';
-  if (full && process.env.BORDER_STARTUP_DIAG !== '1') return res.status(403).json({ ok: false, error: 'full_probe_disabled' });
-  const payload = await getTelegramSnapshot({ username, full, force: req.query?.refresh === '1' });
-  return res.status(payload.ok === false ? 404 : 200).json(payload);
+  const username = req.query?.username ? String(req.query.username).slice(0, 80) : null;
+  if (req.query?.full === '1') return res.status(403).json({ ok: false, error: 'full_probe_disabled' });
+  const payload = await getTelegramSnapshot({ username, full: false, force: false });
+  return res.status(payload.ok === false ? 404 : 200).json(publicSnapshot(payload));
 }
