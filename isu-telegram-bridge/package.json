@@ -1,0 +1,16 @@
+{
+  "name": "isu-telegram-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "dependencies": {
+    "teleproto": "1.229.0"
+  }
+}
