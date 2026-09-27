@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeTelegram, mergeNakordoniWebRows } from '../api/aggregate.js';
+import { mergeTelegram, mergeNakordoniWebRows, mergeNakordoniLiveSnapshot } from '../api/aggregate.js';
 
 test('Moldova checkpoint chats remain visible even without fresh messages', () => {
   const chat = {
@@ -99,4 +99,33 @@ test('Nakordoni freshness merge keeps newer API data but still exposes web sourc
   assert.equal(merged.added, 0);
   assert.equal(merged.rows[0].waitMin, 7);
   assert.equal(merged.rows[0].sources.length, 2);
+});
+
+
+test('Nakordoni Live Queue snapshot replaces an older border snapshot', () => {
+  const base = {
+    id: 'api-grushiv', ppid: 'id_10', name: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL', direction: 'UA_EU',
+    waitMin: 15, queueCars: 0, ageMin: 55, updatedAt: '2026-09-27T05:23:00.000Z', stale: false, confidence: 'medium',
+    sourceUrl: 'https://nakordoni.eu/uk/id/id_10',
+    sources: [{ source: 'nakordoni', label: 'Nakordoni', value: 15, ageMin: 55, updatedAt: '2026-09-27T05:23:00.000Z' }]
+  };
+  const snapshot = { waitMin: 5, queueCars: 0, ageMin: 8, updatedAt: '2026-09-27T06:10:00.000Z', waitStatus: null };
+  const merged = mergeNakordoniLiveSnapshot(base, snapshot);
+  assert.equal(merged.updated, true);
+  assert.equal(merged.row.waitMin, 5);
+  assert.equal(merged.row.ageMin, 8);
+  assert.equal(merged.row.sources[0].label, 'Nakordoni · Live Queue API');
+  assert.equal(merged.row.sources.filter(s => s.source === 'nakordoni').length, 1);
+});
+
+test('Nakordoni Live Queue snapshot never rolls a checkpoint back', () => {
+  const base = {
+    id: 'api-grushiv', ppid: 'id_10', name: 'Грушів - Будоміж', country: 'Польща', countryCode: 'PL', direction: 'UA_EU',
+    waitMin: 5, queueCars: 0, ageMin: 8, updatedAt: '2026-09-27T06:10:00.000Z', stale: false,
+    sources: [{ source: 'nakordoni', label: 'Nakordoni', value: 5, ageMin: 8, updatedAt: '2026-09-27T06:10:00.000Z' }]
+  };
+  const snapshot = { waitMin: 15, queueCars: 0, ageMin: 55, updatedAt: '2026-09-27T05:23:00.000Z', waitStatus: null };
+  const merged = mergeNakordoniLiveSnapshot(base, snapshot);
+  assert.equal(merged.updated, false);
+  assert.equal(merged.row.waitMin, 5);
 });
