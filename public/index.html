@@ -7,6 +7,7 @@
   <title>Border Monitor UA</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="stylesheet" href="/styles.css?v=20260927-secure1" />
+  <link rel="stylesheet" href="/section-nav.css?v=20260927-history1" />
 </head>
 <body>
   <div class="app-shell">
@@ -19,6 +20,11 @@
     </header>
 
     <p class="intro-copy">Черги на кордоні зараз. Обери напрямок, країну і дивись орієнтовний час та свіжі повідомлення водіїв.</p>
+
+    <nav class="section-nav" aria-label="Розділи Border Monitor">
+      <a class="active" href="/" aria-current="page">Live</a>
+      <a href="/history">Історія</a>
+    </nav>
 
     <section class="status-strip">
       <div id="updatedText">Завантаження…</div>
