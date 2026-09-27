@@ -1,8 +1,9 @@
 name: One-shot Telegram auto refresh
 
-on:
+'on':
   push:
-    branches: [border-monitor]
+    branches:
+      - border-monitor
     paths:
       - .github/workflows/one-shot-telegram-auto-refresh.yml
 
@@ -17,65 +18,24 @@ jobs:
         with:
           ref: border-monitor
           fetch-depth: 0
-      - name: Patch Telegram live UX
+      - name: Apply Telegram live UX patch
+        env:
+          PATCH_B64: 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQpwPVBhdGgoJ3B1YmxpYy9hcHAuanMnKQpzPXAucmVhZF90ZXh0KCkKbWFya2VyPSJjb25zdCBmbXRBZ2U9bT0+bT09bnVsbD8n0YfQsNGBINC90LXQstGW0LTQvtC80LjQuSc6bTwxPyfRidC+0LnQvdC+JzptPDYwP2Ake01hdGgucm91bmQobSl9INGF0LIg0YLQvtC80YNgOmAke01hdGguZmxvb3IobS82MCl9INCz0L7QtCAke01hdGgucm91bmQobSU2MCl9INGF0LIg0YLQvtC80YNgOyIKYWRkaXRpb249ImNvbnN0IGZtdFRlbGVncmFtRGF0ZVRpbWU9dj0+e2lmKCF2KXJldHVybicnO2NvbnN0IGQ9bmV3IERhdGUodik7aWYoTnVtYmVyLmlzTmFOKGQuZ2V0VGltZSgpKSlyZXR1cm4nJztyZXR1cm4gZC50b0xvY2FsZVN0cmluZygndWstVUEnLHt0aW1lWm9uZTonRXVyb3BlL0t5aXYnLGRheTonMi1kaWdpdCcsbW9udGg6JzItZGlnaXQnLHllYXI6J251bWVyaWMnLGhvdXI6JzItZGlnaXQnLG1pbnV0ZTonMi1kaWdpdCcsaG91cjEyOmZhbHNlfSkucmVwbGFjZSgnLCcsICcgwrcnKX07IgppZiAnY29uc3QgZm10VGVsZWdyYW1EYXRlVGltZT0nIG5vdCBpbiBzOgogICAgaWYgbWFya2VyIG5vdCBpbiBzOiByYWlzZSBTeXN0ZW1FeGl0KCdmbXRBZ2UgbWFya2VyIG1pc3NpbmcnKQogICAgcz1zLnJlcGxhY2UobWFya2VyLCBtYXJrZXIrJ1xuJythZGRpdGlvbiwgMSkKbmV3X2l0ZW09JycnZnVuY3Rpb24gdGVsZWdyYW1JdGVtSHRtbChzKXtjb25zdCBjaD10ZWxlZ3JhbUNoYW5uZWxVcmwocykscG9zdD1zLnNvdXJjZVVybCxuYW1lPXRlbGVncmFtQ2hhbm5lbE5hbWUocyksc3RhbXA9Zm10VGVsZWdyYW1EYXRlVGltZShzLnVwZGF0ZWRBdCk7Y29uc3Qgc3RhdHM9W3MudmFsdWUhPW51bGw/YOKPsSAke2ZtdFdhaXQocy52YWx1ZSl9YDonJyxzLnF1ZXVlQ2FycyE9bnVsbD9g8J+alyAke3MucXVldWVDYXJzfSDQsNCy0YLQvmA6JyddLmZpbHRlcihCb29sZWFuKS5qb2luKCcgwrcgJyk7cmV0dXJuYDxkaXYgY2xhc3M9InRlbGVncmFtLWl0ZW0iPjxkaXYgY2xhc3M9InRlbGVncmFtLWhlYWQiPjxzdHJvbmc+JHtlc2MobmFtZSl9PC9zdHJvbmc+PHNwYW4+JHtzdGFtcD9lc2Moc3RhbXApOihzLmFnZU1pbiE9bnVsbD9mbXRBZ2Uocy5hZ2VNaW4pOicnKX08L3NwYW4+PC9kaXY+JHtzdGF0cz9gPGRpdiBjbGFzcz0idGVsZWdyYW0tc3RhdHMiPiR7c3RhdHN9PC9kaXY+YDonJ30ke3Mubm90ZT9gPGRpdiBjbGFzcz0idGVsZWdyYW0tbm90ZSI+JHtlc2Mocy5ub3RlKX08L2Rpdj5gOicnfSR7cy5yZXBseUNvbnRleHQ/YDxkaXYgY2xhc3M9InRlbGVncmFtLXJlcGx5Ij48c3Bhbj7ihqnvuI8g0JLRltC00L/QvtCy0ZbQtNGMINC90LA6PC9zcGFuPiAke2VzYyhzLnJlcGx5Q29udGV4dCl9PC9kaXY+YDonJ308ZGl2IGNsYXNzPSJ0ZWxlZ3JhbS1tZXRhIj4ke3MuYWdlTWluIT1udWxsP2Ake2ZtdEFnZShzLmFnZU1pbil9IMK3IGA6Jyd9JHtlc2MoZGlyZWN0aW9uQmFzaXNMYWJlbChzLmRpcmVjdGlvbkJhc2lzKSl9PC9kaXY+PGRpdiBjbGFzcz0idGVsZWdyYW0tbGlua3MiPiR7Y2g/YDxhIGhyZWY9IiR7ZXNjKGNoKX0iIHRhcmdldD0iX2JsYW5rIiByZWw9Im5vb3BlbmVyIj7Qp9Cw0YIg4oaXPC9hPmA6Jyd9JHtwb3N0P2A8YSBocmVmPSIke2VzYyhwb3N0KX0iIHRhcmdldD0iX2JsYW5rIiByZWw9Im5vb3BlbmVyIj7QmtC+0L3QutGA0LXRgtC90LUg0L/QvtCy0ZbQtNC+0LzQu9C10L3QvdGPIOKGlzwvYT5gOicnfTwvZGl2PjwvZGl2PmB9CicnJwpwYXQ9ciJmdW5jdGlvbiB0ZWxlZ3JhbUl0ZW1IdG1sXChzXClcey4qP1x9XG5mdW5jdGlvbiB0ZWxlZ3JhbUJsb2NrIgptPXJlLnNlYXJjaChwYXQscyxyZS5TKQppZiBub3QgbTogcmFpc2UgU3lzdGVtRXhpdCgndGVsZWdyYW1JdGVtSHRtbCBibG9jayBtaXNzaW5nJykKcz1zWzptLnN0YXJ0KCldK25ld19pdGVtKydmdW5jdGlvbiB0ZWxlZ3JhbUJsb2NrJytzW20uZW5kKCk6XQpuZXdfYmxvY2s9JycnZnVuY3Rpb24gdGVsZWdyYW1CbG9jayhyKXtjb25zdCB0Zz0oci5zb3VyY2VzfHxbXSkuZmlsdGVyKHM9PnMuc291cmNlPT09J3RlbGVncmFtJyYmcy5hZ2VNaW4hPW51bGwmJk51bWJlcihzLmFnZU1pbik+PTAmJk51bWJlcihzLmFnZU1pbik8PVRHX1RSVVNUX01BWF9BR0UpLnNvcnQoKGEsYik9PihhLmFnZU1pbj8/OTk5OSktKGIuYWdlTWluPz85OTk5KSksY2hhdD1yLnRlbGVncmFtQ2hhdHx8bnVsbDtpZighdGcubGVuZ3RoKXtjb25zdCBsaW5rPWNoYXQ/LnVybD9gPGRpdiBjbGFzcz0idGVsZWdyYW0tbGlua3MiPjxhIGhyZWY9IiR7ZXNjKGNoYXQudXJsKX0iIHRhcmdldD0iX2JsYW5rIiByZWw9Im5vb3BlbmVyIj7QktGW0LTQutGA0LjRgtC4INGH0LDRgiDCqyR7ZXNjKGNoYXQubGFiZWx8fCdUZWxlZ3JhbScpfcK7IOKGlzwvYT48L2Rpdj5gOicnO2NvbnN0IG1lc3NhZ2U9Y2hhdD8uc3RhdHVzPT09J2Vycm9yJz8n0JDQstGC0L7QvNCw0YLQuNGH0L3QtSDRh9C40YLQsNC90L3RjyDRgtC40LzRh9Cw0YHQvtCy0L4g0L3QtdC00L7RgdGC0YPQv9C90LUuINCn0LDRgiDQtNC+0YHRgtGD0L/QvdC40Lkg0L3QsNC/0YDRj9C80YMuJzon0JfQsNGA0LDQtyDQvdC10LzQsNGUINCw0LrRgtGD0LDQu9GM0L3QvtCz0L4g0YDQtdC70LXQstCw0L3RgtC90L7Qs9C+INC/0L7QstGW0LTQvtC80LvQtdC90L3RjyDQv9C+INGG0YzQvtC80YMg0JrQn9CfLic7cmV0dXJuYDxkaXYgY2xhc3M9InRlbGVncmFtLWJveCBuby10ZyI+PGRpdiBjbGFzcz0idGVsZWdyYW0tdGl0bGUiPvCfkqwg0J7RgdGC0LDQvdC90ZQg0LDQutGC0YPQsNC70YzQvdC1INC/0L7QstGW0LTQvtC80LvQtdC90L3RjyBUZWxlZ3JhbTwvZGl2PjxkaXYgY2xhc3M9InRlbGVncmFtLWVtcHR5Ij4ke21lc3NhZ2V9PC9kaXY+JHtsaW5rfTwvZGl2PmB9Y29uc3QgbGF0ZXN0PXRnWzBdLGNoYXRMaW5rPWNoYXQ/LnVybD9gPGEgY2xhc3M9InRlbGVncmFtLWNoYXQtbWFpbiIgaHJlZj0iJHtlc2MoY2hhdC51cmwpfSIgdGFyZ2V0PSJfYmxhbmsiIHJlbD0ibm9vcGVuZXIiPtCS0ZbQtNC60YDQuNGC0Lgg0YfQsNGCIOKGlzwvYT5gOicnO3JldHVybmA8ZGl2IGNsYXNzPSJ0ZWxlZ3JhbS1ib3giPjxkaXYgY2xhc3M9InRlbGVncmFtLXRpdGxlIj48c3Bhbj7wn5KsINCe0YHRgtCw0L3QvdGUINCw0LrRgtGD0LDQu9GM0L3QtSDQv9C+0LLRltC00L7QvNC70LXQvdC90Y8gVGVsZWdyYW08L3NwYW4+JHtjaGF0TGlua308L2Rpdj48ZGl2IGNsYXNzPSJ0ZWxlZ3JhbS1saXN0Ij4ke3RlbGVncmFtSXRlbUh0bWwobGF0ZXN0KX08L2Rpdj48ZGl2IGNsYXNzPSJ0ZWxlZ3JhbS1kaXNjbGFpbWVyIj7QntC90L7QstC70Y7RlNGC0YzRgdGPINCw0LLRgtC+0LzQsNGC0LjRh9C90L4uINCf0L7QutCw0LfRg9GU0YLRjNGB0Y8g0L3QsNC50YHQstGW0LbRltGI0LUg0YDQtdC70LXQstCw0L3RgtC90LUg0L/QvtCy0ZbQtNC+0LzQu9C10L3QvdGPINC00LvRjyDRhtGM0L7Qs9C+INCa0J/Qny48L2Rpdj48L2Rpdj5gfQonJycKcGF0PXIiZnVuY3Rpb24gdGVsZWdyYW1CbG9ja1woclwpXHsuKj9cfVxuZnVuY3Rpb24gYWN0aW9ucyIKbT1yZS5zZWFyY2gocGF0LHMscmUuUykKaWYgbm90IG06IHJhaXNlIFN5c3RlbUV4aXQoJ3RlbGVncmFtQmxvY2sgYmxvY2sgbWlzc2luZycpCnM9c1s6bS5zdGFydCgpXStuZXdfYmxvY2srJ2Z1bmN0aW9uIGFjdGlvbnMnK3NbbS5lbmQoKTpdCm5ld19sb2FkPScnJ2FzeW5jIGZ1bmN0aW9uIGxvYWQoKXtpZihzdGF0ZS5sb2FkaW5nKXJldHVybjtzdGF0ZS5sb2FkaW5nPXRydWU7JCgndXBkYXRlZFRleHQnKS50ZXh0Q29udGVudD0n0J7QvdC+0LLQu9GO0Y4g0LTQsNC90ZYg0LDQstGC0L7QvNCw0YLQuNGH0L3QvuKApic7dHJ5e2NvbnN0IHI9YXdhaXQgZmV0Y2goYC9hcGkvYWdncmVnYXRlP2RpcmVjdGlvbj0ke3N0YXRlLmRpcmVjdGlvbn1gLHtjYWNoZTonbm8tc3RvcmUnfSksZGF0YT1hd2FpdCByLmpzb24oKTtpZighci5va3x8IWRhdGEub2spdGhyb3cgbmV3IEVycm9yKGRhdGEuZXJyb3J8fCfQndC1INCy0LTQsNC70L7RgdGPINC+0YLRgNC40LzQsNGC0Lgg0LTQsNC90ZYnKTtzdGF0ZS5yb3dzPUFycmF5LmlzQXJyYXkoZGF0YS5jcm9zc2luZ3MpP2RhdGEuY3Jvc3NpbmdzOltdO2NvbnN0IGR0PWRhdGEuZ2VuZXJhdGVkQXQ/bmV3IERhdGUoZGF0YS5nZW5lcmF0ZWRBdCk6bmV3IERhdGUoKTskKCd1cGRhdGVkVGV4dCcpLnRleHRDb250ZW50PWBMSVZFIMK3INCw0LLRgtC+0L7QvdC+0LLQu9C10L3QviAke2R0LnRvTG9jYWxlVGltZVN0cmluZygndWstVUEnLHt0aW1lWm9uZTonRXVyb3BlL0t5aXYnLGhvdXI6JzItZGlnaXQnLG1pbnV0ZTonMi1kaWdpdCd9KX1gO2NvbnN0IG5rPWRhdGEuc291cmNlU3RhdHVzPy5uYWtvcmRvbmksa2Q9ZGF0YS5zb3VyY2VTdGF0dXM/LmtvcmRvbixrZGQ9ZGF0YS5zb3VyY2VTdGF0dXM/LmtvcmRvbkRldGFpbHMsdGc9ZGF0YS5zb3VyY2VTdGF0dXM/LnRlbGVncmFtLHRkPWRhdGEuc291cmNlU3RhdHVzPy50ZWxlZ3JhbURldGFpbHM7Y29uc3Qga3Q9a2Q9PT0nY29ubmVjdGVkJz9g4pyTJHtrZGQ/LmNvdW50P2AgJHtrZGQuY291bnR9YDonJ31gOmtkPT09J25vdF9hcHBsaWNhYmxlJz8n4oCUJzprZD09PSdzdGFsZV9jYWNoZSc/J9C60LXRiCc6a2R8fCfigJQnOyQoJ3NvdXJjZVRleHQnKS50ZXh0Q29udGVudD1gTmFrb3Jkb25pOiAke25rPT09J2Nvbm5lY3RlZCc/J+Kckyc6bms9PT0nbWlzc2luZ19rZXknPyfQvdC10LzQsNGUINC60LvRjtGH0LAnOm5rfHwn4oCUJ30gwrcgS29yZG9uL9CU0J/QodCjOiAke2t0fSDCtyDQntGE0ZbRhtGW0LnQvdGWOiAke29mZmljaWFsU3VtbWFyeShkYXRhLnNvdXJjZVN0YXR1cz8ub2ZmaWNpYWwpfSDCtyDQmtCw0LzQtdGA0Lg6IOKckyDCtyBUZWxlZ3JhbTogJHt0ZWxlZ3JhbVN0YXR1c0xhYmVsKHRnLHRkKX1gO3JlbmRlcigpfWNhdGNoKGUpeyQoJ3VwZGF0ZWRUZXh0JykudGV4dENvbnRlbnQ9J9Ci0LjQvNGH0LDRgdC+0LLQsCDQv9C+0LzQuNC70LrQsCDQsNCy0YLQvtC+0L3QvtCy0LvQtdC90L3Rjyc7JCgnc291cmNlVGV4dCcpLnRleHRDb250ZW50PVN0cmluZyhlLm1lc3NhZ2V8fGUpfWZpbmFsbHl7c3RhdGUubG9hZGluZz1mYWxzZX19CicnJwpwYXQ9ciJhc3luYyBmdW5jdGlvbiBsb2FkXChcKVx7Lio/XH1cbmRvY3VtZW50XC5xdWVyeVNlbGVjdG9yQWxsXCgnXC5zZWdtZW50LWJ0bidcKSIKbT1yZS5zZWFyY2gocGF0LHMscmUuUykKaWYgbm90IG06IHJhaXNlIFN5c3RlbUV4aXQoJ2xvYWQgYmxvY2sgbWlzc2luZycpCnM9c1s6bS5zdGFydCgpXStuZXdfbG9hZCsiZG9jdW1lbnQucXVlcnlTZWxlY3RvckFsbCgnLnNlZ21lbnQtYnRuJykiK3NbbS5lbmQoKTpdCm9sZD0iJCgncmVmcmVzaEJ0bicpLmFkZEV2ZW50TGlzdGVuZXIoJ2NsaWNrJyxsb2FkKTtsb2FkKCk7IgpuZXc9ImxvYWQoKTtzZXRJbnRlcnZhbChsb2FkLDYwXzAwMCk7ZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigndmlzaWJpbGl0eWNoYW5nZScsKCk9PntpZighZG9jdW1lbnQuaGlkZGVuKWxvYWQoKX0pO3dpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdmb2N1cycsbG9hZCk7IgppZiBvbGQgbm90IGluIHM6IHJhaXNlIFN5c3RlbUV4aXQoJ3JlZnJlc2ggYmluZGluZyBtaXNzaW5nJykKcz1zLnJlcGxhY2Uob2xkLG5ldywxKQpwLndyaXRlX3RleHQocykKcD1QYXRoKCdwdWJsaWMvaW5kZXguaHRtbCcpCnM9cC5yZWFkX3RleHQoKQpzPXMucmVwbGFjZSgnICAgICAgPGJ1dHRvbiBpZD0icmVmcmVzaEJ0biIgY2xhc3M9InJlZnJlc2gtYnRuIiB0eXBlPSJidXR0b24iIGFyaWEtbGFiZWw9ItCe0L3QvtCy0LjRgtC4Ij7ihrs8L2J1dHRvbj5cbicsJycsMSkKcz1zLnJlcGxhY2UoJzxwPtCh0L/RgNC+0LHRg9C5INC+0L3QvtCy0LjRgtC4INCw0LHQviDQstC40LHRgNCw0YLQuCDRltC90YjQuNC5INC90LDQv9GA0Y/QvNC+0LouPC9wPicsJzxwPtCU0LDQvdGWINC+0L3QvtCy0LvRjtGO0YLRjNGB0Y8g0LDQstGC0L7QvNCw0YLQuNGH0L3Qvi4g0JzQvtC20L3QsCDQstC40LHRgNCw0YLQuCDRltC90YjQuNC5INC90LDQv9GA0Y/QvNC+0LouPC9wPicsMSkKcz1zLnJlcGxhY2UoJy9hcHAuanM/dj0yMDI2MDkyNi1tdHByb3RvJywnL2FwcC5qcz92PTIwMjYwOTI3LWxpdmUnLDEpCnAud3JpdGVfdGV4dChzKQo='
         run: |
           python - <<'PY'
-          from pathlib import Path
-          import re
-
-          p=Path('public/app.js')
-          s=p.read_text()
-
-          marker="const fmtAge=m=>m==null?'час невідомий':m<1?'щойно':m<60?`${Math.round(m)} хв тому`:`${Math.floor(m/60)} год ${Math.round(m%60)} хв тому`;"
-          addition="""const fmtTelegramDateTime=v=>{if(!v)return'';const d=new Date(v);if(Number.isNaN(d.getTime()))return'';return d.toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',', ' ·')};"""
-          if 'const fmtTelegramDateTime=' not in s:
-              if marker not in s: raise SystemExit('fmtAge marker missing')
-              s=s.replace(marker, marker+'\n'+addition, 1)
-
-          new_item="""function telegramItemHtml(s){const ch=telegramChannelUrl(s),post=s.sourceUrl,name=telegramChannelName(s),stamp=fmtTelegramDateTime(s.updatedAt);const stats=[s.value!=null?`⏱ ${fmtWait(s.value)}`:'',s.queueCars!=null?`🚗 ${s.queueCars} авто`:''].filter(Boolean).join(' · ');return`<div class=\"telegram-item\"><div class=\"telegram-head\"><strong>${esc(name)}</strong><span>${stamp?esc(stamp):(s.ageMin!=null?fmtAge(s.ageMin):'')}</span></div>${stats?`<div class=\"telegram-stats\">${stats}</div>`:''}${s.note?`<div class=\"telegram-note\">${esc(s.note)}</div>`:''}${s.replyContext?`<div class=\"telegram-reply\"><span>↩️ Відповідь на:</span> ${esc(s.replyContext)}</div>`:''}<div class=\"telegram-meta\">${s.ageMin!=null?`${fmtAge(s.ageMin)} · `:''}${esc(directionBasisLabel(s.directionBasis))}</div><div class=\"telegram-links\">${ch?`<a href=\"${esc(ch)}\" target=\"_blank\" rel=\"noopener\">Чат ↗</a>`:''}${post?`<a href=\"${esc(post)}\" target=\"_blank\" rel=\"noopener\">Конкретне повідомлення ↗</a>`:''}</div></div>`}
-"""
-          pat=r"function telegramItemHtml\(s\)\{.*?\}\nfunction telegramBlock"
-          m=re.search(pat,s,re.S)
-          if not m: raise SystemExit('telegramItemHtml block missing')
-          s=s[:m.start()]+new_item+'function telegramBlock'+s[m.end():]
-
-          new_block="""function telegramBlock(r){const tg=(r.sources||[]).filter(s=>s.source==='telegram'&&s.ageMin!=null&&Number(s.ageMin)>=0&&Number(s.ageMin)<=TG_TRUST_MAX_AGE).sort((a,b)=>(a.ageMin??9999)-(b.ageMin??9999)),chat=r.telegramChat||null;if(!tg.length){const link=chat?.url?`<div class=\"telegram-links\"><a href=\"${esc(chat.url)}\" target=\"_blank\" rel=\"noopener\">Відкрити чат «${esc(chat.label||'Telegram')}» ↗</a></div>`:'';const message=chat?.status==='error'?'Автоматичне читання тимчасово недоступне. Чат доступний напряму.':'Зараз немає актуального релевантного повідомлення по цьому КПП.';return`<div class=\"telegram-box no-tg\"><div class=\"telegram-title\">💬 Останнє актуальне повідомлення Telegram</div><div class=\"telegram-empty\">${message}</div>${link}</div>`}const latest=tg[0],chatLink=chat?.url?`<a class=\"telegram-chat-main\" href=\"${esc(chat.url)}\" target=\"_blank\" rel=\"noopener\">Відкрити чат ↗</a>`:'';return`<div class=\"telegram-box\"><div class=\"telegram-title\"><span>💬 Останнє актуальне повідомлення Telegram</span>${chatLink}</div><div class=\"telegram-list\">${telegramItemHtml(latest)}</div><div class=\"telegram-disclaimer\">Оновлюється автоматично. Показується найсвіжіше релевантне повідомлення для цього КПП.</div></div>`}
-"""
-          pat=r"function telegramBlock\(r\)\{.*?\}\nfunction actions"
-          m=re.search(pat,s,re.S)
-          if not m: raise SystemExit('telegramBlock block missing')
-          s=s[:m.start()]+new_block+'function actions'+s[m.end():]
-
-          new_load="""async function load(){if(state.loading)return;state.loading=true;$('updatedText').textContent='Оновлюю дані автоматично…';try{const r=await fetch(`/api/aggregate?direction=${state.direction}`,{cache:'no-store'}),data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Не вдалося отримати дані');state.rows=Array.isArray(data.crossings)?data.crossings:[];const dt=data.generatedAt?new Date(data.generatedAt):new Date();$('updatedText').textContent=`LIVE · автооновлено ${dt.toLocaleTimeString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'})}`;const nk=data.sourceStatus?.nakordoni,kd=data.sourceStatus?.kordon,kdd=data.sourceStatus?.kordonDetails,tg=data.sourceStatus?.telegram,td=data.sourceStatus?.telegramDetails;const kt=kd==='connected'?`✓${kdd?.count?` ${kdd.count}`:''}`:kd==='not_applicable'?'—':kd==='stale_cache'?'кеш':kd||'—';$('sourceText').textContent=`Nakordoni: ${nk==='connected'?'✓':nk==='missing_key'?'немає ключа':nk||'—'} · Kordon/ДПСУ: ${kt} · Офіційні: ${officialSummary(data.sourceStatus?.official)} · Камери: ✓ · Telegram: ${telegramStatusLabel(tg,td)}`;render()}catch(e){$('updatedText').textContent='Тимчасова помилка автооновлення';$('sourceText').textContent=String(e.message||e)}finally{state.loading=false}}
-"""
-          pat=r"async function load\(\)\{.*?\}\ndocument\.querySelectorAll\('\.segment-btn'\)"
-          m=re.search(pat,s,re.S)
-          if not m: raise SystemExit('load block missing')
-          s=s[:m.start()]+new_load+"document.querySelectorAll('.segment-btn')"+s[m.end():]
-
-          old="$('refreshBtn').addEventListener('click',load);load();"
-          new="load();setInterval(load,60_000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});window.addEventListener('focus',load);"
-          if old not in s: raise SystemExit('refresh binding missing')
-          s=s.replace(old,new,1)
-          p.write_text(s)
-
-          p=Path('public/index.html')
-          s=p.read_text()
-          s=s.replace('      <button id="refreshBtn" class="refresh-btn" type="button" aria-label="Оновити">↻</button>\n','',1)
-          s=s.replace('<p>Спробуй оновити або вибрати інший напрямок.</p>','<p>Дані оновлюються автоматично. Можна вибрати інший напрямок.</p>',1)
-          s=s.replace('/app.js?v=20260926-mtproto','/app.js?v=20260927-live',1)
-          p.write_text(s)
+          import base64, os
+          exec(base64.b64decode(os.environ['PATCH_B64']).decode())
           PY
           node --check public/app.js
           grep -q 'setInterval(load,60_000)' public/app.js
           grep -q 'Останнє актуальне повідомлення Telegram' public/app.js
-          ! grep -q 'refreshBtn' public/app.js
-          ! grep -q 'refreshBtn' public/index.html
-      - name: Commit and remove workflow
+          test -z "$(grep -n 'refreshBtn' public/app.js || true)"
+          test -z "$(grep -n 'refreshBtn' public/index.html || true)"
+      - name: Commit patch
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/one-shot-telegram-auto-refresh.yml
           git add public/app.js public/index.html
-          git commit -m "Auto-refresh Telegram and show latest relevant message"
+          git commit -m 'Auto-refresh Telegram and show latest relevant message'
           git push origin HEAD:border-monitor
