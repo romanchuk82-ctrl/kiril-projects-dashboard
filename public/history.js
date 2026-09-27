@@ -1,6 +1,6 @@
 const COUNTRY={PL:'🇵🇱 Польща',SK:'🇸🇰 Словаччина',HU:'🇭🇺 Угорщина',RO:'🇷🇴 Румунія',MD:'🇲🇩 Молдова'};
 const DOW={1:'понеділок',2:'вівторок',3:'середа',4:'четвер',5:'п’ятниця',6:'субота',7:'неділя'};
-const MODEL_URL='https://raw.githubusercontent.com/romanchuk82-ctrl/kiril-projects-dashboard/border-history-data/history-model.json';
+const MODEL_URL='https://raw.githubusercontent.com/romanchuk82-ctrl/kiril-projects-dashboard/border-history-data/public/history-model.json';
 const CACHE_KEY='border-history-read-model-v1';
 const state={catalog:[],direction:'UA_EU',country:'ALL',crossing:'',days:30,model:null,fromCache:false};
 const $=s=>document.querySelector(s);
