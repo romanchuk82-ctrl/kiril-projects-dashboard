@@ -5,6 +5,7 @@ import aggregateHandler from './api/aggregate-final.js';
 import statusHandler from './api/status.js';
 import telegramHandler from './api/telegram.js';
 import historyHandler from './api/history.js';
+import { handleTelegramMcp, isTelegramMcpPath } from './api/telegram-mcp.js';
 
 const __dirname = process.cwd();
 const publicDir = path.join(__dirname, 'public');
@@ -40,7 +41,7 @@ function clientIp(req) {
 
 function rateLimit(req, res, pathname) {
   const now = Date.now();
-  const limit = pathname === '/api/telegram' ? 240 : pathname === '/api/aggregate' ? 120 : pathname === '/api/status' ? 60 : pathname.startsWith('/history-api/') ? 120 : 600;
+  const limit = isTelegramMcpPath(pathname) ? 120 : pathname === '/api/telegram' ? 240 : pathname === '/api/aggregate' ? 120 : pathname === '/api/status' ? 60 : pathname.startsWith('/history-api/') ? 120 : 600;
   const key = `${clientIp(req)}|${pathname}`;
   let bucket = rateBuckets.get(key);
   if (!bucket || now - bucket.startedAt >= RATE_WINDOW_MS) bucket = { startedAt: now, count: 0 };
@@ -119,7 +120,7 @@ async function startupDiag() {
   }
 }
 
-const server = http.createServer({ maxHeaderSize: 8192, requestTimeout: 15_000, headersTimeout: 10_000, keepAliveTimeout: 5_000 }, async (req, res) => {
+const server = http.createServer({ maxHeaderSize: 8192, requestTimeout: 30_000, headersTimeout: 10_000, keepAliveTimeout: 5_000 }, async (req, res) => {
   setSecurityHeaders(res);
   try {
     if ((req.url || '').length > 2048) {
@@ -131,6 +132,8 @@ const server = http.createServer({ maxHeaderSize: 8192, requestTimeout: 15_000, 
     if (!rateLimit(req, res, url.pathname)) return;
 
     const method = req.method || 'GET';
+    if (isTelegramMcpPath(url.pathname)) return handleTelegramMcp(req, res, url);
+
     if (!['GET', 'HEAD'].includes(method)) {
       res.statusCode = 405;
       res.setHeader('Allow', 'GET, HEAD');
