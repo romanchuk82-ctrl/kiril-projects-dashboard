@@ -1,4 +1,3 @@
-const CONFIG=window.HISTORY_CONFIG||{};
 const COUNTRY={PL:'🇵🇱 Польща',SK:'🇸🇰 Словаччина',HU:'🇭🇺 Угорщина',RO:'🇷🇴 Румунія',MD:'🇲🇩 Молдова'};
 const DOW={1:'понеділок',2:'вівторок',3:'середа',4:'четвер',5:'п’ятниця',6:'субота',7:'неділя'};
 const state={catalog:[],direction:'UA_EU',country:'ALL',crossing:'',days:30};
@@ -10,16 +9,19 @@ function fmtWait(v){v=num(v);if(v==null)return'—';if(v<60)return`${Math.round(
 function fmtDate(value){if(!value)return'—';const d=new Date(value);if(Number.isNaN(d.getTime()))return'—';return new Intl.DateTimeFormat('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d)}
 
 async function rpc(name,args={}){
-  if(!CONFIG.supabaseUrl||!CONFIG.publishableKey)throw new Error('history_config_missing');
-  const response=await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/${name}`,{
-    method:'POST',
-    headers:{apikey:CONFIG.publishableKey,'Content-Type':'application/json',Accept:'application/json'},
-    body:JSON.stringify(args),
-    cache:'no-store'
-  });
+  let url;
+  if(name==='border_history_catalog')url=new URL('/api/catalog',location.origin);
+  else{
+    const mode=name==='border_history_series'?'series':'insights';
+    url=new URL(`/api/${mode}`,location.origin);
+    url.searchParams.set('crossing',args.p_crossing_key||'');
+    url.searchParams.set('direction',args.p_direction||'UA_EU');
+    url.searchParams.set('days',String(args.p_days||30));
+  }
+  const response=await fetch(url,{cache:'no-store',headers:{Accept:'application/json'}});
   const body=await response.json().catch(()=>null);
-  if(!response.ok)throw new Error(body?.message||body?.hint||`history_${response.status}`);
-  return body;
+  if(!response.ok||body?.ok===false)throw new Error(body?.error||`history_${response.status}`);
+  return body?.data??body;
 }
 
 function visibleCatalog(){return state.catalog.filter(x=>x.direction===state.direction&&(state.country==='ALL'||x.country_code===state.country))}
