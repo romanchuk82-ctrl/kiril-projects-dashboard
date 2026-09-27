@@ -48,7 +48,27 @@
   }
 
   recomputeTimeTrust = function(row) {
+    const serverConflict = row?.timeReliability === 'conflict' && ['wait_queue', 'queue_sources'].includes(row?.sourceConflictType);
+    const saved = serverConflict ? {
+      type: row.sourceConflictType,
+      conflict: row.sourceConflict || null,
+      reason: row.timeReliabilityReason || 'Свіжі джерела суперечать одне одному',
+      queueConflict: Boolean(row.queueConflict)
+    } : null;
+
     const out = baseRecomputeTimeTrust(row);
+
+    if (saved) {
+      out.timeReliable = false;
+      out.timeReliability = 'conflict';
+      out.sourceConflictType = saved.type;
+      out.sourceConflict = saved.conflict;
+      out.timeReliabilityReason = saved.reason;
+      out.queueConflict = saved.queueConflict;
+      out.confidence = 'low';
+      return out;
+    }
+
     const queueConflict = queueConflictSummary(out);
     if (queueConflict) {
       out.timeReliable = false;
@@ -64,6 +84,20 @@
 
   function conflictTelegramCue(row) {
     if (row?.timeReliability !== 'conflict') return null;
+
+    if (row?.sourceConflictType === 'wait_queue' && row?.sourceConflict) {
+      const c = row.sourceConflict;
+      return {
+        kind: 'wait_queue',
+        text: `${c.queueCars} авто vs ≈ ${fmtWait(c.waitMin)}`,
+        conflict: c
+      };
+    }
+
+    if (row?.sourceConflictType === 'queue_sources') {
+      return { kind: 'generic', text: 'Джерела розходяться' };
+    }
+
     if (row?.sourceConflictType === 'queue' && row?.sourceConflict) {
       const c = row.sourceConflict;
       if (c.tgQueue != null) return { kind: c.tgQueue >= 10 ? 'high' : 'low', text: `Telegram: ${c.tgQueue} авто`, queueConflict: c };
@@ -91,13 +125,25 @@
 
   humanQueueState = function(row) {
     const cue = conflictTelegramCue(row);
-    if (cue) return { tone: 'tone-yellow', icon: '⚠️', label: `${cue.text} · джерела розходяться` };
+    if (cue) {
+      if (cue.kind === 'generic') return { tone: 'tone-yellow', icon: '⚠️', label: 'Джерела розходяться' };
+      if (cue.kind === 'wait_queue') return { tone: 'tone-yellow', icon: '⚠️', label: `${cue.text} · джерела розходяться` };
+      return { tone: 'tone-yellow', icon: '⚠️', label: `${cue.text} · джерела розходяться` };
+    }
     return baseHumanQueueState(row);
   };
 
   humanConflictNote = function(row) {
     const cue = conflictTelegramCue(row);
     if (!cue) return baseHumanConflictNote(row);
+
+    if (row?.sourceConflictType === 'wait_queue' && row?.sourceConflict) {
+      const c = row.sourceConflict;
+      const queueAge = c.queueAgeMin != null ? fmtAge(c.queueAgeMin) : 'час невідомий';
+      const waitAge = c.waitAgeMin != null ? fmtAge(c.waitAgeMin) : 'час невідомий';
+      return `⚠️ Показники мають різну свіжість і суперечать одне одному: ${c.queueCars} авто (${queueAge}), але оцінка часу ≈ ${fmtWait(c.waitMin)} (${waitAge}). Не використовуємо цей КПП як надійний швидкий орієнтир.`;
+    }
+
     if (row?.sourceConflictType === 'queue' && row?.sourceConflict) {
       const c = row.sourceConflict;
       const tg = c.tgQueue != null ? `${c.tgQueue} авто` : (c.tgSignal === 'high' ? 'значну чергу' : 'черги немає / майже немає');
@@ -110,7 +156,7 @@
   };
 
   estimateText = function(row) {
-    if (row?.timeReliability === 'conflict' && row?.sourceConflictType === 'queue' && displayTimeMin(row) == null) return '⚠️ різні дані';
+    if (row?.timeReliability === 'conflict' && ['queue', 'wait_queue', 'queue_sources'].includes(row?.sourceConflictType)) return '⚠️ різні дані';
     return baseEstimateText(row);
   };
 
