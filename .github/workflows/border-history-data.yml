@@ -1,0 +1,50 @@
+name: Border History Data
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/border-history-data.yml'
+  schedule:
+    - cron: '12 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout history data branch
+        uses: actions/checkout@v4
+        with:
+          ref: border-history-data
+          fetch-depth: 0
+
+      - name: Fetch latest history read model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public
+          curl --fail --show-error --silent \
+            --retry 5 --retry-all-errors --retry-delay 8 \
+            --connect-timeout 20 --max-time 180 \
+            "https://border-monitor-history-app.onrender.com/api/export?run=${GITHUB_RUN_ID}" \
+            -o /tmp/history-model.json
+          jq -e '.generatedAt and (.catalog | type == "array") and (.datasets | type == "object")' /tmp/history-model.json >/dev/null
+          mv /tmp/history-model.json public/history-model.json
+
+      - name: Commit snapshot when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- public/history-model.json && git ls-files --error-unmatch public/history-model.json >/dev/null 2>&1; then
+            echo "History model unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/history-model.json
+          git commit -m "Update border history read model"
+          git push origin HEAD:border-history-data
