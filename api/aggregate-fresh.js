@@ -9,6 +9,27 @@ const probeCache=new Map();
 let liveStartGate=Promise.resolve();
 let nextLiveStartAt=0;
 
+const NKD_FETCH_GUARD=Symbol.for('border-monitor.nakordoni-fetch-guard');
+if(!globalThis[NKD_FETCH_GUARD]){
+  const originalFetch=globalThis.fetch.bind(globalThis);
+  let apiGate=Promise.resolve();
+  let nextApiStartAt=0;
+  globalThis.fetch=async(input,init)=>{
+    const url=typeof input==='string'?input:(input?.url||String(input||''));
+    if(!url.startsWith('https://nakordoni.eu/api/'))return originalFetch(input,init);
+    const prior=apiGate;
+    let release;
+    apiGate=new Promise(resolve=>{release=resolve});
+    await prior;
+    const delay=Math.max(0,nextApiStartAt-Date.now());
+    if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+    nextApiStartAt=Date.now()+LIVE_MIN_INTERVAL_MS;
+    release();
+    return originalFetch(input,init);
+  };
+  globalThis[NKD_FETCH_GUARD]={minIntervalMs:LIVE_MIN_INTERVAL_MS};
+}
+
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const text=v=>typeof v==='string'&&v.trim()?v.trim():null;
 
@@ -216,6 +237,6 @@ export default async function handler(req,res){
   }
 
   const finalRows=rows.map(enforceQueueConflict);
-  const nd={...(body.sourceStatus?.nakordoniDetails||{}),freshLiveSweep:true,freshLiveAttempted:candidates.length,freshLiveUpdated:updated,freshLiveDetails:details,rateLimitProtection:{maxPerSecond:2,minStartIntervalMs:LIVE_MIN_INTERVAL_MS,probeCacheMinutes:PROBE_TTL_MS/60000}};
+  const nd={...(body.sourceStatus?.nakordoniDetails||{}),freshLiveSweep:true,freshLiveAttempted:candidates.length,freshLiveUpdated:updated,freshLiveDetails:details,rateLimitProtection:{scope:'all_nakordoni_api',maxPerSecond:2,minStartIntervalMs:LIVE_MIN_INTERVAL_MS,probeCacheMinutes:PROBE_TTL_MS/60000}};
   return res.status(200).json({...body,generatedAt:new Date().toISOString(),crossings:finalRows,sourceStatus:{...(body.sourceStatus||{}),nakordoniDetails:nd}});
 }
