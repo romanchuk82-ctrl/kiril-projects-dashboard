@@ -1,3 +1,4 @@
+import {nakordoniBudgetStatus} from './nakordoni-fetch-budget.js';
 import aggregateFreshHandler from './aggregate-fresh.js';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
@@ -66,6 +67,7 @@ export default async function handler(req,res){
     crossings,
     sourceStatus:{
       ...(body.sourceStatus||{}),
+      nakordoniBudget:nakordoniBudgetStatus(),
       consistencyGuard:{
         directWaitVsCars:true,
         lowCarsMax:3,
