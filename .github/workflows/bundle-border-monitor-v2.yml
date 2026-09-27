@@ -1,6 +1,6 @@
 name: Build Border Monitor bundle v2
 
-# Rebuild trigger: hardened production runtime 2026-09-27
+# Rebuild trigger: Telegram MCP connector 2026-09-27
 on:
   push:
     branches: [border-monitor]
@@ -27,6 +27,8 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Refresh lockfile for declared dependencies
+        run: npm install --package-lock-only --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: npm test
       - name: Build bundle
@@ -34,14 +36,15 @@ jobs:
       - name: Write bootstrap
         shell: bash
         run: |
-          cat > server.js <<'EOF'
+          cat > server.js <<'BOOTSTRAP'
           import './server.bundle.cjs';
-          EOF
+          BOOTSTRAP
       - name: Verify clean runtime
         shell: bash
         run: |
           set -euo pipefail
           node --check server.source.js
+          node --check api/telegram-mcp.js
           node --check server.js
           node --check server.bundle.cjs
           tmp="$(mktemp -d)"
@@ -68,7 +71,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add server.js server.bundle.cjs
+          git add server.js server.bundle.cjs package-lock.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Bundle production runtime [bundle-v2]"
           git pull --rebase origin border-monitor
