@@ -110,3 +110,27 @@ test('generic directionless message does not reuse old checkpoint context', asyn
   const parsed = parseTelegramMessage(message, null, source, now, context);
   assert.equal(parsed, null);
 });
+
+
+test("parses bare 'Нема' reply to a queue question", async () => {
+  const { parseTelegramMessage } = await import('../api/telegram.js');
+  const now = Date.parse('2026-09-27T06:00:00.000Z');
+  const source = { kind:'checkpoint_chat', checkpoint:'Грушів - Будоміж', country:'Польща', countryCode:'PL', label:'Грушів - Будоміж', username:'hryshiv', channelUrl:'https://t.me/hryshiv' };
+  const question = { id:270020, date:'2026-09-27T05:39:03.000Z', message:'Добрий ранок. Підкажіть будь ласка яка черга авто до Польщі?' };
+  const answer = { id:270021, date:'2026-09-27T05:47:22.000Z', message:'Нема', replyToMsgId:270020 };
+  const parsed = parseTelegramMessage(answer, question, source, now, null);
+  assert.ok(parsed);
+  assert.equal(parsed.direction, 'UA_EU');
+  assert.equal(parsed.direction_basis, 'reply');
+  assert.equal(parsed.note, 'Нема');
+  assert.match(parsed.reply_context, /черга авто до Польщі/);
+});
+
+test('does not treat explicit advertising post as a queue report', async () => {
+  const { parseTelegramMessage } = await import('../api/telegram.js');
+  const now = Date.parse('2026-09-27T07:01:00.000Z');
+  const source = { kind:'checkpoint_chat', checkpoint:'Грушів - Будоміж', country:'Польща', countryCode:'PL', label:'Грушів - Будоміж', username:'hryshiv', channelUrl:'https://t.me/hryshiv' };
+  const ad = { id:270024, date:'2026-09-27T07:00:02.000Z', message:'Рекламне повідомлення за донат на ЗСУ. РЕКЛАМА в чатах Українці на Кордоні. Розміщення реклами здійснюється за донат.' };
+  const context = { direction:'EU_UA', ts:Date.parse('2026-09-27T06:58:58.000Z'), queueIntent:true };
+  assert.equal(parseTelegramMessage(ad, null, source, now, context), null);
+});

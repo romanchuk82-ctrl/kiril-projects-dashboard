@@ -147,7 +147,14 @@ function advertisementLike(text) {
   const raw = String(text || '');
   const promo = /реклам|донат|аеропорт|аэропорт|катовіц|katowice|індивідуаль|индивидуаль|трансфер|таксі|такси|перевез|підвез|подвез/i.test(raw);
   const phone = /(?:\+?\d[\s()\-.]*){9,}/.test(raw);
-  return promo && phone;
+  const explicitAd = /рекламне повідомлення|реклама в чатах|розміщення реклами|для замовлення.{0,60}реклам/i.test(raw);
+  return promo && (phone || explicitAd);
+}
+
+export function shortQueueReplyLike(text, replyText) {
+  if (!queueQuestionLike(replyText)) return false;
+  const normalized = clean(text);
+  return /^(?:нема|немає|нет|ні|нікого|пусто|нуль|0|без черги|черги нема|черги немає|очереди нет|без очереди)$/u.test(normalized);
 }
 
 function parseContextQueueCars(text, replyText, contextDirection) {
@@ -209,8 +216,9 @@ export function parseTelegramMessage(message, replyMessage, source, nowMs = Date
   if (questionLike(text)) return null;
   const waitMin = parseWaitMin(text);
   const queueCars = parseQueueCars(text) ?? parseContextQueueCars(text, replyText, effectiveContext);
+  const shortQueueReply = shortQueueReplyLike(text, replyText);
   if (advertisementLike(text) && waitMin == null && queueCars == null) return null;
-  if (waitMin == null && queueCars == null && !signalLike(text)) return null;
+  if (waitMin == null && queueCars == null && !signalLike(text) && !shortQueueReply) return null;
   const id = Number(message?.id);
   if (!Number.isInteger(id) || id <= 0) return null;
   return {
@@ -374,8 +382,7 @@ async function fetchSource(source, force = false) {
     const result = {
       source, items, status: 'connected', messagesScanned: messages.length,
       newestMessageAt: timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : null,
-      peerId: peer.id,
-      recentMessages: [...messages].sort((a,b)=>messageTimestampMs(b)-messageTimestampMs(a)).slice(0,20).map(m=>({id:m.id,date:Number.isFinite(messageTimestampMs(m))?new Date(messageTimestampMs(m)).toISOString():null,text:messageText(m),replyToMsgId:m.replyToMsgId||null}))
+      peerId: peer.id
     };
     sourceCache.set(key, { ts: Date.now(), result });
     return result;
@@ -465,7 +472,6 @@ function buildPayload(results = [], requested = null) {
     requested,
     items,
     sources: allResults.map(result => sourceMeta(result, configured ? 'available' : 'missing_credentials')),
-    ...(requested && requested !== 'full' ? { recentMessages: byUser.get(String(requested).toLowerCase())?.recentMessages || [] } : {}),
     quota: quotaState.remaining == null ? null : quotaState
   };
 }

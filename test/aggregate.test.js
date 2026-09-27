@@ -129,3 +129,13 @@ test('Nakordoni Live Queue snapshot never rolls a checkpoint back', () => {
   assert.equal(merged.updated, false);
   assert.equal(merged.row.waitMin, 5);
 });
+
+
+test('bare negative Telegram reply supports a low base wait', async () => {
+  const { mergeTelegram } = await import('../api/aggregate.js');
+  const base = [{ id:'g', name:'Грушів - Будоміж', country:'Польща', countryCode:'PL', direction:'UA_EU', waitMin:15, queueCars:0, sources:[], stale:false }];
+  const report = [{ checkpoint:'Грушів - Будоміж', country:'Польща', country_code:'PL', direction:'UA_EU', wait_min:null, queue_cars:null, updated_at:new Date().toISOString(), age_min:5, note:'Нема', reply_context:'Добрий ранок. Підкажіть будь ласка яка черга авто до Польщі?', source_label:'Грушів - Будоміж', source_url:'https://t.me/hryshiv/270021', source_channel:'hryshiv', channel_url:'https://t.me/hryshiv', direction_basis:'reply' }];
+  const rows = mergeTelegram(base, report, 'UA_EU', []);
+  assert.equal(rows[0].telegramQualitative.low, 1);
+  assert.equal(rows[0].timeReliability, 'supported');
+});

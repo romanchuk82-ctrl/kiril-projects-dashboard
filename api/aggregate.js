@@ -49,7 +49,9 @@ function telegramQualitativeSignal(src){
   const raw=String(src?.note||'');
   if(/[?？]/.test(raw)||/(?:^|\s)(яка|який|які|скільки|підкажіть|підкажи|скажіть|скажи|хто знає)(?:\s|$)/iu.test(raw))return null;
   const text=keyName(raw);
-  const low=/(без черги|нема черги|немає черги|черги нема|черги немає|пусто|вільно|вільний|одразу|відразу|сразу|без очікування)/.test(text);
+  const reply=keyName(src?.replyContext||'');
+  const shortNegative=/^(нема|немає|нет|ні|нікого|пусто|нуль|0)$/.test(text)&&/(черг|очеред|авто|машин)/.test(reply);
+  const low=shortNegative||/(без черги|нема черги|немає черги|черги нема|черги немає|пусто|вільно|вільний|одразу|відразу|сразу|без очікування)/.test(text);
   const high=/(велика черга|довга черга|черга велика|черга довга|стоимо|стоїмо|чекаємо|ждемо|затор)/.test(text);
   if(low&&!high)return'low';if(high&&!low)return'high';return null
 }
