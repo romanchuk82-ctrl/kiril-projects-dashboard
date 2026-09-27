@@ -90,10 +90,13 @@ async function serveStatic(req, res, filePath) {
     const fullPath = path.join(publicDir, filePath);
     let data = await fs.readFile(fullPath);
     if (filePath === 'app.js') {
-      try {
-        const addon = await fs.readFile(path.join(publicDir, 'tgatlas-ui.js'));
-        data = Buffer.concat([data, Buffer.from('\n;\n'), addon]);
-      } catch {}
+      const addons = [];
+      for (const addonName of ['tgatlas-ui.js', 'source-breakdown-ui.js']) {
+        try {
+          addons.push(await fs.readFile(path.join(publicDir, addonName)));
+        } catch {}
+      }
+      if (addons.length) data = Buffer.concat([data, ...addons.flatMap(addon => [Buffer.from('\n;\n'), addon])]);
     }
     res.statusCode = 200;
     res.setHeader('Content-Type', mime[path.extname(fullPath)] || 'application/octet-stream');
