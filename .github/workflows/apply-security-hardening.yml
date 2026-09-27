@@ -1,0 +1,46 @@
+name: Apply production security hardening
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - 'scripts/security_hardening.py'
+      - '.github/workflows/apply-security-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: border-monitor
+          fetch-depth: 0
+      - name: Apply security patch
+        run: python scripts/security_hardening.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install and test
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          node --check server.source.js
+          node --check api/aggregate.js
+          node --check api/telegram.js
+          node --check public/app.js
+          node --check public/tgatlas-ui.js
+      - name: Commit hardened production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server.source.js api/aggregate.js api/telegram.js api/status.js public/index.html public/app.js public/tgatlas-ui.js public/styles.css package.json README.md test/security.test.js .github/workflows/security-audit.yml .github/workflows/bundle-border-monitor-v2.yml .github/dependabot.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Harden public Border Monitor attack surface"
+          git pull --rebase origin border-monitor
+          git push origin HEAD:border-monitor
