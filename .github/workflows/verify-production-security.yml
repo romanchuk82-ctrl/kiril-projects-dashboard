@@ -1,0 +1,55 @@
+name: Verify production security
+
+on:
+  push:
+    branches: [border-monitor]
+    paths:
+      - '.github/workflows/verify-production-security.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe production security controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://border-monitor-ua.onrender.com'
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS "$BASE/health" >/tmp/health.json; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
+          grep -q '"ok":true' /tmp/health.json
+
+          curl -fsSI "$BASE/" >/tmp/headers.txt
+          grep -qi '^content-security-policy:' /tmp/headers.txt
+          grep -qi '^strict-transport-security:' /tmp/headers.txt
+          grep -qi '^x-frame-options: *DENY' /tmp/headers.txt
+          grep -qi '^x-content-type-options: *nosniff' /tmp/headers.txt
+          grep -qi '^referrer-policy: *no-referrer' /tmp/headers.txt
+          grep -qi '^permissions-policy:' /tmp/headers.txt
+
+          code=$(curl -sS -o /tmp/full.json -w '%{http_code}' "$BASE/api/telegram?full=1")
+          test "$code" = 403
+          grep -q 'full_probe_disabled' /tmp/full.json
+
+          code=$(curl -sS -o /tmp/snapshot.txt -w '%{http_code}' "$BASE/snapshot?username=hryshiv")
+          test "$code" = 404
+
+          code=$(curl -sS -X POST -o /tmp/post.txt -w '%{http_code}' "$BASE/api/aggregate")
+          test "$code" = 405
+
+          curl -fsS "$BASE/api/aggregate?direction=UA_EU" -o /tmp/aggregate.json
+          grep -q '"ok":true' /tmp/aggregate.json
+          ! grep -q '"camera"' /tmp/aggregate.json
+          ! grep -qi 'TELEGRAM_SESSION\|TELEGRAM_API_HASH\|TELEGRAM_API_ID\|NKD_API_KEY' /tmp/aggregate.json
+
+          curl -fsS "$BASE/api/telegram?username=hryshiv&refresh=1" -o /tmp/tg.json
+          ! grep -qi 'peerId\|TELEGRAM_SESSION\|TELEGRAM_API_HASH\|TELEGRAM_API_ID' /tmp/tg.json
+
+          echo 'Production security verification passed.'
