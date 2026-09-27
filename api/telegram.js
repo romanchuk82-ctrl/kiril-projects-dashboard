@@ -130,6 +130,30 @@ function questionLike(text) {
   return /(?:^|\s)(?:підкажіть|підкажи|підскажіть|подскажите|скажіть|скажи|скажите|хто\s+знає|кто\s+знает|яка|який|які|какая|какой|какие|скільки|сколько)(?:\s|$)/u.test(normalized);
 }
 
+function queueQuestionLike(text) {
+  if (!questionLike(text)) return false;
+  return /черг|очеред|авто|машин|скільки|сколько/i.test(String(text || ''));
+}
+
+function advertisementLike(text) {
+  const raw = String(text || '');
+  const promo = /реклам|донат|аеропорт|аэропорт|катовіц|katowice|індивідуаль|индивидуаль|трансфер|таксі|такси|перевез|підвез|подвез/i.test(raw);
+  const phone = /(?:\+?\d[\s()\-.]*){9,}/.test(raw);
+  return promo && phone;
+}
+
+function parseContextQueueCars(text, replyText, contextDirection) {
+  const queueContext = queueQuestionLike(replyText) || Boolean(contextDirection?.queueIntent);
+  if (!queueContext) return null;
+  const raw = String(text || '').trim().toLowerCase();
+  let match = raw.match(/^(?:десь|приблизно|прибл\.?|около|примерно|біля|до|~)?\s*(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*(?:шт\.?|авто|машин[\p{L}]*)?$/iu);
+  if (match) return Math.max(Number(match[1]), Number(match[2]));
+  match = raw.match(/^(?:десь|приблизно|прибл\.?|около|примерно|біля|до|~)?\s*(\d{1,3})\s*(?:шт\.?|авто|машин[\p{L}]*)?$/iu);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value <= 500 ? value : null;
+}
+
 function directionFromPair(text, replyText) {
   const fromMessage = inferDirection(text);
   if (fromMessage) return { direction: fromMessage, basis: 'message' };
@@ -170,7 +194,8 @@ export function parseTelegramMessage(message, replyMessage, source, nowMs = Date
   if (ageMin > MAX_AGE_MIN) return null;
   if (questionLike(text)) return null;
   const waitMin = parseWaitMin(text);
-  const queueCars = parseQueueCars(text);
+  const queueCars = parseQueueCars(text) ?? parseContextQueueCars(text, replyText, contextDirection);
+  if (advertisementLike(text) && waitMin == null && queueCars == null) return null;
   if (waitMin == null && queueCars == null && !signalLike(text)) return null;
   const id = Number(message?.id);
   if (!Number.isInteger(id) || id <= 0) return null;
@@ -320,8 +345,14 @@ async function fetchSource(source, force = false) {
     for (const message of chronological) {
       const replyMessage = byId.get(message.replyToMsgId);
       const timestampMs = messageTimestampMs(message);
-      const direct = directionFromPair(messageText(message), messageText(replyMessage));
-      if (direct?.direction && Number.isFinite(timestampMs)) contextDirection = { direction: direct.direction, ts: timestampMs };
+      const text = messageText(message);
+      const replyText = messageText(replyMessage);
+      const direct = directionFromPair(text, replyText);
+      if (direct?.direction && Number.isFinite(timestampMs)) {
+        contextDirection = { direction: direct.direction, ts: timestampMs, queueIntent: queueQuestionLike(text) || queueQuestionLike(replyText) };
+      } else if (contextDirection && queueQuestionLike(text) && Number.isFinite(timestampMs)) {
+        contextDirection = { ...contextDirection, ts: timestampMs, queueIntent: true };
+      }
       const context = contextDirection && Number.isFinite(timestampMs) && timestampMs >= contextDirection.ts && timestampMs - contextDirection.ts <= CONTEXT_DIRECTION_MAX_GAP_MS
         ? contextDirection
         : null;
