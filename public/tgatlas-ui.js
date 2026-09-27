@@ -1,31 +1,17 @@
 
 (() => {
-  const baseTelegramBlock = telegramBlock;
   const baseTelegramStatusLabel = telegramStatusLabel;
   const baseRender = render;
-  const autoDone = new Set();
-  const autoRunning = new Set();
+  const AUTO_REFRESH_MS = 60_000;
+  const BATCH_SIZE = 4;
+  let refreshRunning = false;
+  let lastViewKey = '';
 
   telegramStatusLabel = function(status, details) {
     const count = details?.totalSources ? ` ${details.connectedSources || 0}/${details.totalSources}` : '';
     if (status === 'available') return 'готовий';
     if (details?.mode === 'tgatlas' && status === 'partial') return `активний${count}`;
     return baseTelegramStatusLabel(status, details);
-  };
-
-  telegramBlock = function(r) {
-    const tg = (r.sources || []).filter(s => s.source === 'telegram').sort((a,b)=>(a.ageMin ?? 9999) - (b.ageMin ?? 9999));
-    const chat = r.telegramChat || null;
-    if (tg.length) return baseTelegramBlock(r);
-    if (!chat) return baseTelegramBlock(r);
-
-    const link = chat.url ? `<a href="${esc(chat.url)}" target="_blank" rel="noopener">Відкрити чат «${esc(chat.label || 'Telegram')}» ↗</a>` : '';
-    const canLoad = ['available','connected','error','partial'].includes(chat.status || 'available');
-    let message = 'За останні 3 години свіжих повідомлень по цьому КПП не знайдено.';
-    if (chat.status === 'available') message = 'Telegram перевіряється автоматично. За потреби можна оновити вручну.';
-    if (chat.status === 'error') message = 'Остання перевірка Telegram не вдалася. Можна повторити.';
-    const button = canLoad ? `<button type="button" class="tg-load-btn" data-channel="${esc(chat.channel || '')}">Оновити Telegram</button>` : '';
-    return `<div class="telegram-box no-tg"><div class="telegram-title">💬 Що пишуть у Telegram</div><div class="telegram-empty">${message}</div><div class="telegram-links">${button}${link}</div></div>`;
   };
 
   function toUiSource(item) {
@@ -45,56 +31,71 @@
     };
   }
 
-  async function loadTelegram(channel, button = null, silent = false) {
-    if (!channel || button?.dataset?.loading === '1') return false;
-    if (button) { button.dataset.loading = '1'; button.disabled = true; button.textContent = 'Перевіряю…'; }
+  async function loadTelegram(channel) {
+    if (!channel) return false;
     try {
       const response = await fetch(`/snapshot?username=${encodeURIComponent(channel)}`, { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'telegram_error');
       const key = channel.toLowerCase();
       const row = state.rows.find(r => String(r.telegramChat?.channel || '').toLowerCase() === key);
-      if (!row) throw new Error('row_not_found');
+      if (!row) return false;
       row.sources = (row.sources || []).filter(s => !(s.source === 'telegram' && String(s.sourceChannel || '').toLowerCase() === key));
-      const fresh = (data.items || []).filter(item => item.direction === state.direction && String(item.source_channel || '').toLowerCase() === key).map(toUiSource);
+      const fresh = (data.items || [])
+        .filter(item => item.direction === state.direction && String(item.source_channel || '').toLowerCase() === key)
+        .map(toUiSource);
       row.sources.push(...fresh);
       row.humanReports = fresh.length;
       row.humanSignal = fresh.length > 1 ? 'corroborated' : fresh.length === 1 ? 'reported' : null;
       if (typeof recomputeTimeTrust === 'function') recomputeTimeTrust(row);
       const meta = (data.sources || []).find(s => String(s.channel || '').toLowerCase() === key);
-      if (meta) row.telegramChat = { label: meta.label, channel: meta.channel, url: meta.channelUrl, status: meta.status, freshReports: meta.items || 0, messagesScanned: meta.messagesScanned || 0, newestMessageAt: meta.newestMessageAt || null };
-      render();
-      return Boolean(row.timeReliable || row.telegramWaitMin != null || row.telegramQueueCars != null);
+      if (meta) row.telegramChat = {
+        label: meta.label,
+        channel: meta.channel,
+        url: meta.channelUrl,
+        status: meta.status,
+        freshReports: meta.items || 0,
+        messagesScanned: meta.messagesScanned || 0,
+        newestMessageAt: meta.newestMessageAt || null
+      };
+      return true;
     } catch (error) {
-      if (button) { button.disabled = false; button.dataset.loading = '0'; button.textContent = 'Повторити Telegram'; }
-      if (!silent) console.warn('[telegram-ui]', String(error?.message || error));
+      console.warn('[telegram-ui]', String(error?.message || error));
       return false;
     }
   }
 
-  async function autoConfirmBest() {
-    const key = `${state.direction}:${state.country}`;
-    if (autoDone.has(key) || autoRunning.has(key)) return;
-    autoRunning.add(key);
+  async function refreshVisibleTelegram() {
+    if (refreshRunning || document.hidden) return;
+    const rows = typeof currentRows === 'function' ? currentRows() : state.rows;
+    const channels = [...new Set(rows.map(r => r.telegramChat?.channel).filter(Boolean))];
+    if (!channels.length) return;
+    refreshRunning = true;
     try {
-      const visible = (typeof currentRows === 'function' ? currentRows() : state.rows).filter(r => !r.stale && r.telegramChat?.channel && r.timeReliable !== true);
-      const timed = visible.filter(r => r.waitMin != null || r.telegramWaitMin != null).sort((a,b)=>(a.waitMin ?? a.telegramWaitMin ?? 999999)-(b.waitMin ?? b.telegramWaitMin ?? 999999));
-      const noTime = visible.filter(r => r.waitMin == null && r.telegramWaitMin == null);
-      const candidates = state.country === 'ALL' ? [...timed, ...noTime].slice(0, 4) : [...timed, ...noTime];
-      for (let i = 0; i < candidates.length; i += 3) {
-        await Promise.all(candidates.slice(i, i + 3).map(row => loadTelegram(row.telegramChat.channel, null, true)));
+      for (let i = 0; i < channels.length; i += BATCH_SIZE) {
+        await Promise.all(channels.slice(i, i + BATCH_SIZE).map(loadTelegram));
       }
+      baseRender();
     } finally {
-      autoRunning.delete(key);
-      autoDone.add(key);
+      refreshRunning = false;
     }
+  }
+
+  function scheduleForCurrentView() {
+    const key = `${state.direction}:${state.country}`;
+    if (key === lastViewKey) return;
+    lastViewKey = key;
+    setTimeout(refreshVisibleTelegram, 150);
   }
 
   render = function() {
     baseRender();
-    document.querySelectorAll('.tg-load-btn').forEach(button => {
-      button.addEventListener('click', () => loadTelegram(button.dataset.channel, button), { once: true });
-    });
-    setTimeout(autoConfirmBest, 0);
+    scheduleForCurrentView();
   };
+
+  setInterval(refreshVisibleTelegram, AUTO_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshVisibleTelegram();
+  });
+  window.addEventListener('focus', refreshVisibleTelegram);
 })();
