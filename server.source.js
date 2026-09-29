@@ -31,6 +31,7 @@ function setSecurityHeaders(res) {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
 }
 
 function clientIp(req) {
