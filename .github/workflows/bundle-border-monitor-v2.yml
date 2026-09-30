@@ -10,6 +10,7 @@ on:
       - 'public/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'test/**'
       - '.github/workflows/bundle-border-monitor-v2.yml'
 
 permissions:
