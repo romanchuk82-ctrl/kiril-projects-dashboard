@@ -232,7 +232,7 @@ function mergeLive(row,snapshot){
   if(newTs==null||(oldTs!=null&&newTs<=oldTs))return{row,updated:false};
 
   const liveSource={
-    source:'nakordoni',label:'Nakordoni · Live Queue API',value:snapshot.waitMin,queueCars:snapshot.queueCars,
+    source:'nakordoni',label:'дані nakordoni.eu',value:snapshot.waitMin,queueCars:snapshot.queueCars,
     updatedAt:snapshot.updatedAt||null,ageMin:snapshot.ageMin??null,
     sourceUrl:row.sourceUrl||`https://nakordoni.eu/uk/id/${row.ppid||''}`,
     note:snapshot.queueCars!=null?`${Math.round(snapshot.queueCars)} авто · live queue snapshot`:'live queue snapshot'
