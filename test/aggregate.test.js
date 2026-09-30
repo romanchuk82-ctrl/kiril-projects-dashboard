@@ -114,7 +114,7 @@ test('Nakordoni Live Queue snapshot replaces an older border snapshot', () => {
   assert.equal(merged.updated, true);
   assert.equal(merged.row.waitMin, 5);
   assert.equal(merged.row.ageMin, 8);
-  assert.equal(merged.row.sources[0].label, 'дані nakordoni.eu');
+  assert.equal(merged.row.sources[0].label, 'дані nakordoni.eu'); // Explorer attribution
   assert.equal(merged.row.sources.filter(s => s.source === 'nakordoni').length, 1);
 });
 
