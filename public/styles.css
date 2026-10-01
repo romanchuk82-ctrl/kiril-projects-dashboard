@@ -47,10 +47,6 @@ h1{font-size:26px;line-height:1.1;margin:4px 0 0;color:var(--navy)}
 .crossing-list{display:grid;gap:10px}
 .crossing-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
 .crossing-card.stale{opacity:1;border-color:#E7D9B7}
-.crossing-card.medium-freshness{border-color:#E7D9B7}
-.freshness-note{display:inline-block;margin-left:5px;font-size:9px;font-weight:700}
-.freshness-note.medium{color:#8A6A00}
-.freshness-note.stale{color:#A13838}
 .crossing-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .crossing-title{font-size:15px;font-weight:700;color:var(--navy)}
 .crossing-sub{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
