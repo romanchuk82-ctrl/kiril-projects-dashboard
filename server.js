@@ -1,1 +1,1 @@
-import './server.bundle.cjs';
+import './server.source.js';
