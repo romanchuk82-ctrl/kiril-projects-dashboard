@@ -94,11 +94,11 @@ function annotateMetricFreshness(row){
   if(next.waitMin!=null&&waitAge!=null){
     next.ageMin=waitAge;
     next.updatedAt=waitUpdated||next.updatedAt||null;
-    next.stale=waitAge>60;
+    next.stale=waitAge>180;
   }else if(next.waitMin==null&&q?.age!=null){
     next.ageMin=q.age;
     next.updatedAt=q.src?.updatedAt||next.updatedAt||null;
-    next.stale=q.age>60;
+    next.stale=q.age>180;
   }
   return next;
 }
@@ -258,8 +258,8 @@ function mergeLive(row,snapshot){
     next.queueUpdatedAt=snapshot.updatedAt||null;
   }
 
-  if(next.waitMin!=null&&num(next.waitAgeMin)!=null)next.stale=Number(next.waitAgeMin)>60;
-  else if(next.waitMin==null&&liveAge!=null)next.stale=liveAge>60;
+  if(next.waitMin!=null&&num(next.waitAgeMin)!=null)next.stale=Number(next.waitAgeMin)>180;
+  else if(next.waitMin==null&&liveAge!=null)next.stale=liveAge>180;
   next=applyTelegramTimeTrust(next);
   return{row:annotateMetricFreshness(next),updated:true};
 }
